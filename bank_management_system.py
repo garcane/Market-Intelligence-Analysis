@@ -12,12 +12,6 @@ class BankManagementSystem(QMainWindow):
         self.setWindowTitle("Bank Management System")
         self.setGeometry(100, 100, 800, 600)
         
-        
-    def initUI(self):
-        # Set window title and size
-        self.setWindowTitle("Bank Management System")
-        self.setGeometry(100, 100, 800, 600)
-
         # Create menu bar
         menubar = self.menuBar()
         file_menu = menubar.addMenu("File")
