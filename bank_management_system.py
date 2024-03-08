@@ -1,8 +1,13 @@
-from PyQt5.QtWidgets import QMainWindow, QDialog, QWidget, QVBoxLayout, QApplication, QMainWindow, QAction, QToolBar, QWidget, QVBoxLayout
-from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QMainWindow, QDialog, QLabel, QWidget, QVBoxLayout, QApplication, QMainWindow, QAction, QToolBar, QWidget, QVBoxLayout
+from PyQt5.QtGui import QIcon, QFont
 import sys
 from login_screen import LoginScreen
+from PyQt5.QtCore import Qt
+
 # Import other necessary Qt modules and classes
+
+
+# Create a class that inherits from QMainWindow. Initialize the object. No parameters. No return value.
 
 class BankManagementSystem(QMainWindow):
     def __init__(self):
@@ -30,7 +35,13 @@ class BankManagementSystem(QMainWindow):
         central_widget.setLayout(central_layout)
         self.setCentralWidget(central_widget)
 
-        # Add your application's content to the central_layout
+        welcome_label = QLabel("Welcome to the Bank Management System!")
+        welcome_label.setFont(QFont("Arial", 24))  # Set the font and size
+        welcome_label.setAlignment(Qt.AlignCenter)  # Center the label text
+
+        # Add the welcome label to the layout
+        central_layout.addWidget(welcome_label, alignment=Qt.AlignTop)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
