@@ -1,8 +1,8 @@
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton
 
 class LoginScreen(QDialog):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.initUI()
 
     def initUI(self):
@@ -31,7 +31,14 @@ class LoginScreen(QDialog):
         # Implement login logic here
         username = self.username_input.text()
         password = self.password_input.text()
-        # Perform authentication and handle successful or failed login
+
+        # Example: Check if the username and password are correct
+        if username == "admin" and password == "password":
+            # Login successful, accept the dialog
+            self.accept()
+        else:
+            # Login failed, reject the dialog
+            self.reject()
 
         # Example: Print the entered credentials
         print(f"Username: {username}, Password: {password}")
