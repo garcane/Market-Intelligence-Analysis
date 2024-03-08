@@ -1,6 +1,7 @@
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QApplication, QMainWindow, QAction, QToolBar, QWidget, QVBoxLayout
+from PyQt5.QtWidgets import QMainWindow, QDialog, QWidget, QVBoxLayout, QApplication, QMainWindow, QAction, QToolBar, QWidget, QVBoxLayout
 from PyQt5.QtGui import QIcon
 import sys
+from login_screen import LoginScreen
 # Import other necessary Qt modules and classes
 
 class BankManagementSystem(QMainWindow):
