@@ -1,3 +1,5 @@
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit
+
 class ReportingWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -6,17 +8,9 @@ class ReportingWindow(QWidget):
     def initUI(self):
         layout = QVBoxLayout()
 
-        # Create buttons
-        report_button = QPushButton("View Reports")
-        report_button.clicked.connect(self.show_report_window)
-        transaction_button = QPushButton("Manage Transactions")
-        transaction_button.clicked.connect(self.show_transaction_window)
+        # Create a QTextEdit to display the report
+        report_text = QTextEdit()
+        report_text.setPlainText("Report content goes here...")
 
-        # Add buttons to the layout
-        layout.addWidget(report_button)
-        layout.addWidget(transaction_button)
-
+        layout.addWidget(report_text)
         self.setLayout(layout)
-
-    def show_report_window(self):
-        report_window = ReportWindow()
