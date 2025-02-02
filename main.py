@@ -23,7 +23,7 @@ def scrape_crypto_news():
     headlines = []
     dates = []
     for page in range(1, 15):
-        url = f"https://crypto.news/page/{page}/?s=xrp"
+        url = f"https://crypto.news/page/{page}/?s=sui"
         response = requests.get(url)
         soup = BeautifulSoup(response.text, 'html.parser')
         for h3, date_div in zip(soup.find_all('h3'), soup.find_all('div', class_='search-result-loop__date')):
@@ -35,7 +35,7 @@ def scrape_crypto_news():
     return headlines, dates
 
 # Function to scrape titles and dates from The Crypto Basic
-def scrape_crypto_basic():
+''' def scrape_crypto_basic():
     titles = []
     dates = []
     for page in range(1, 15):
@@ -50,19 +50,19 @@ def scrape_crypto_basic():
                 parsed_date = datetime.strptime(raw_date, "%Y-%m-%d").strftime('%d/%m/%Y')
                 titles.append(title.get_text())
                 dates.append(parsed_date)
-    return titles, dates
+    return titles, dates'''
 
 # Function to scrape headlines and dates from Yahoo Finance
 def scrape_yahoo_finance():
     yahoo_headlines = []
     dates = []
-    url = "https://finance.yahoo.com/quote/XRP-USD/news/"
+    url = "https://finance.yahoo.com/quote/SUI20947-USD/news/"
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
     articles = soup.find_all('h3', class_='Mb(5px)')
     times = soup.find_all('div', class_='publishing yf-1weyqlp')
 
-    for article, time_div in zip(articles[:50], times[:50]):  # Limit to 20 articles
+    for article, time_div in zip(articles[:10], times[:10]):  # Limit to 20 articles
         headline = article.get_text()
         time_text = time_div.get_text(strip=True).split("•")[-1].strip()
         # Calculate date from "XX hours/days ago"
@@ -91,11 +91,14 @@ def scrape_yahoo_finance():
 # Step 2: Combine all scraped data
 def combine_data():
     crypto_news_headlines, crypto_news_dates = scrape_crypto_news()
-    crypto_basic_titles, crypto_basic_dates = scrape_crypto_basic()
+    #crypto_basic_titles, crypto_basic_dates = scrape_crypto_basic()
     yahoo_finance_headlines, yahoo_finance_dates = scrape_yahoo_finance()
 
-    all_headlines = crypto_news_headlines + crypto_basic_titles + yahoo_finance_headlines
-    all_dates = crypto_news_dates + crypto_basic_dates + yahoo_finance_dates
+    '''all_headlines = crypto_news_headlines + crypto_basic_titles + yahoo_finance_headlines
+    all_dates = crypto_news_dates + crypto_basic_dates + yahoo_finance_dates'''
+    
+    all_headlines = crypto_news_headlines + yahoo_finance_headlines
+    all_dates = crypto_news_dates + yahoo_finance_dates
     return all_headlines, all_dates
 
 # The rest of the code remains the same except for updated visualization
@@ -127,7 +130,7 @@ for headline, date in zip(all_headlines, all_dates):
 df = pd.DataFrame(data)
 
 # Step 7: Save the DataFrame to a CSV file
-df.to_csv('crypto_headlines_sentiment_analysis.csv', index=False)
+df.to_csv('sui_crypto_headlines_sentiment_analysis.csv', index=False)
 
 # Step 8: Visualization with date on the x-axis
 fig, ax = plt.subplots(figsize=(15, 8))
