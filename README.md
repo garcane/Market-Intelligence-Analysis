@@ -1,4 +1,4 @@
-# Sui Crypto Analysi - A Python Project
+# Sui Crypto Analysis - A Python Project
 
 SUI is the native coin of the Sui network, a layer-1 blockchain platform designed for global adoption that utilizes a novel object-centric data model and the Move programming language. The SUI coin has a capped total supply of 10 billion.
 
