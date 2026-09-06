@@ -1,207 +1,83 @@
-import pandas as pd
+# Import libraries and modules
+import pandas_datareader as pdr
 import numpy as np
-from bs4 import BeautifulSoup
-import requests
-from textblob import TextBlob
-import nltk
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
-import re
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-import matplotlib.pyplot as plt
-import seaborn as sns
-from datetime import datetime, timedelta
+import pandas as pd
+import math
+import datetime as dt
+import yfinance as yf
 
-# Step 1: Download NLTK resources
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('wordnet')
+from bokeh.io import curdoc
+from bokeh.plotting import figure
+from bokeh.models import TextInput, Button, DatePicker, MultiChoice
+from bokeh.layouts import column, row
 
-# Function to scrape headlines and dates from Crypto News
-def scrape_crypto_news():
-    headlines = []
-    dates = []
-    for page in range(1, 7):
-        url = f"https://crypto.news/page/{page}/?s=sui"
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        for h3, date_div in zip(soup.find_all('h3'), soup.find_all('div', class_='search-result-loop__date')):
-            headline = h3.get_text()
-            raw_date = date_div.get_text(strip=True).split(" at ")[0]  # Remove time
-            parsed_date = datetime.strptime(raw_date, "%B %d, %Y").strftime('%d/%m/%Y')
-            headlines.append(headline)
-            dates.append(parsed_date)
-    return headlines, dates
+def load_data(symbol, start_date, end_date):
+    df = yf.download(symbol, start_date, end_date)
+    return df
 
-# Function to scrape titles and dates from The Crypto Basic
-''' def scrape_crypto_basic():
-    titles = []
-    dates = []
-    for page in range(1, 15):
-        url = f"https://thecryptobasic.com/tag/ripple/page/{page}/"
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        for a in soup.find_all('a'):
-            title = a.find('h3')
-            date_time = a.find('time', class_='entry-date updated td-module-date')
-            if title and date_time:
-                raw_date = date_time['datetime'].split("T")[0]  # Extract date part
-                parsed_date = datetime.strptime(raw_date, "%Y-%m-%d").strftime('%d/%m/%Y')
-                titles.append(title.get_text())
-                dates.append(parsed_date)
-    return titles, dates'''
-
-# Function to scrape headlines and dates from Yahoo Finance
-def scrape_yahoo_finance():
-    yahoo_headlines = []
-    dates = []
-    url = "https://finance.yahoo.com/quote/SUI20947-USD/news/"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    articles = soup.find_all('h3', class_='Mb(5px)')
-    times = soup.find_all('div', class_='publishing yf-1weyqlp')
-
-    for article, time_div in zip(articles[:7], times[:7]):  # Limit to 7 articles
-        headline = article.get_text()
-        time_text = time_div.get_text(strip=True).split("•")[-1].strip()
-        # Calculate date from "XX hours/days ago"
-        today = datetime.today()
-        if "hour" in time_text:
-            hours_ago = int(re.search(r"\d+", time_text).group())
-            article_date = today - timedelta(hours=hours_ago)
-        elif "day" in time_text:
-            days_ago = int(re.search(r"\d+", time_text).group())
-            article_date = today - timedelta(days=days_ago)
-        elif "week" in time_text:
-            weeks_ago = int(re.search(r"\d+", time_text).group())
-            article_date = today - timedelta(weeks=weeks_ago)
-        elif "month" in time_text:
-            months_ago = int(re.search(r"\d+", time_text).group())
-            article_date = today - timedelta(days=months_ago * 30)
-        else:
-            article_date = today
-
-        parsed_date = article_date.strftime('%d/%m/%Y')
-        yahoo_headlines.append(headline)
-        dates.append(parsed_date)
-
-    return yahoo_headlines, dates
-
-# Step 2: Combine all scraped data
-def combine_data():
-    crypto_news_headlines, crypto_news_dates = scrape_crypto_news()
-    #crypto_basic_titles, crypto_basic_dates = scrape_crypto_basic()
-    yahoo_finance_headlines, yahoo_finance_dates = scrape_yahoo_finance()
-
-    '''all_headlines = crypto_news_headlines + crypto_basic_titles + yahoo_finance_headlines
-    all_dates = crypto_news_dates + crypto_basic_dates + yahoo_finance_dates'''
+def plot_data(df, indicator, sync_axis=None):
+    gain = df['Close'] > df['Open']
+    loss = df['Open'] > df['Close']
+    width = 12 * 60 * 60 * 1000  # half day in ms
     
-    all_headlines = crypto_news_headlines + yahoo_finance_headlines
-    all_dates = crypto_news_dates + yahoo_finance_dates
-    return all_headlines, all_dates
+    if sync_axis is not None:
+        p = figure(x_axis_type="datetime", tools="pan,wheel_zoom,box_zoom,reset,save", width=1000, x_range=sync_axis)
+    else:
+        p = figure(x_axis_type="datetime", tools="pan,wheel_zoom,box_zoom,reset,save", width=1000)
 
-# The rest of the code remains the same except for updated visualization
+    p.xaxis.major_label_orientation = math.pi / 4
+    p.grid.grid_line_alpha = 0.25
+    
+    p.segment(df.index, df['High'], df.index, df['Low'], color="black")
+    p.vbar(df.index[gain], width, df['Open'][gain], df['Close'][gain], fill_color="#00ff00", line_color="#00ff00")
+    p.vbar(df.index[loss], width, df['Open'][loss], df['Close'][loss], fill_color="#ff0000", line_color="#ff0000")
+    
+    
+    
+    for indicator in indicator:
+        if indicator == '30 Day SMA':
+            df['SMA30'] = df['Close'].rolling(window=30).mean()
+            p.line(df.index, df['SMA30'], color='orange', legend_label='30 Day SMA', line_width=2)
+        elif indicator == '100 Day SMA':
+            df['SMA100'] = df['Close'].rolling(window=100).mean()
+            p.line(df.index, df['SMA100'], color='blue', legend_label='100 Day SMA', line_width=2)
+        elif indicator == 'Linear Regression':
+            par = np.polyfit(range(len(df.index.values)), df['Close'].values, 1, full=True)
+            slope = par[0][0]
+            intercept = par[0][1]
+            y_pred = [slope * i + intercept for i in range(len(df.index.values))]
+            p.segment(df.index[0], y_pred[0], df.index[-1], y_pred[-1], color='pink', legend_label='Linear Regression', line_width=2)  
+            
+        p.legend.location = "top_left"
+        p.legend.click_policy = "hide"
+    return p
+    
+def on_button_clicked():
+    ticker1 = stock1_text.value
+    ticker2 = stock2_text.value
+    start = date_picker_from.value
+    end = date_picker_to.value
+    indicators = indicator_choice.value
 
-# Step 6: Create a DataFrame and analyze sentiment
-data = []
-all_headlines, all_dates = combine_data()
-for headline, date in zip(all_headlines, all_dates):
-    cleaned_headline = re.sub(r'\W', ' ', headline.lower())
-    textblob_score = TextBlob(cleaned_headline).sentiment.polarity
-    vader_score = SentimentIntensityAnalyzer().polarity_scores(cleaned_headline)['compound']
-    average_score = (textblob_score + vader_score) / 2
-    sentiment_category = (
-        "Bullish" if average_score >= 0.5 else
-        "Slightly Bullish" if 0.2 < average_score < 0.4 else
-        "Neutral" if -0.2 <= average_score <= 0.2 else
-        "Slightly Bearish" if -0.5 <= average_score < -0.2 else
-        "Bearish"
-    )
-    data.append({
-        'headline': headline,
-        'date': date,
-        'textblob_score': textblob_score,
-        'vader_score': vader_score,
-        'average_score': average_score,
-        'sentiment_category': sentiment_category
-    })
+    df1 = load_data(ticker1, start, end)
+    df2 = load_data(ticker2, start, end)
+    p1 = plot_data(df1, indicators)
+    p2 = plot_data(df2, indicators, sync_axis=p1.x_range)
+    curdoc().clear()
+    curdoc().add_root(layout)
+    curdoc().add_root(row(p1, p2))
 
-df = pd.DataFrame(data)
+stock1_text = TextInput(title="Stock 1")
+stock2_text = TextInput(title="Stock 2")
+date_picker_from = DatePicker(title="Start Date", value="2020-01-01", min_date="2000-01-01", max_date=dt.datetime.now().strftime("%Y-%m-%d"))
+date_picker_to = DatePicker(title="End Date", value="2020-02-01", min_date="2000-01-01", max_date=dt.datetime.now().strftime("%Y-%m-%d"))
 
-# Step 7: Save the DataFrame to a CSV file
-df.to_csv('sui_crypto_headlines_sentiment_analysis.csv', index=False)
+indicator_choice = MultiChoice(options=["100 Day SMA", "30 Day SMA", "Linear Regression"])
 
-# Step 8: Visualization with date on the x-axis
-fig, ax = plt.subplots(figsize=(25, 8))
+load_button = Button(label="Load Data", button_type="success")
+load_button.on_click(on_button_clicked)
 
-sns.barplot(x="date", y="vader_score", data=df, color="blue", label="Vader Score", ax=ax)
-sns.barplot(x="date", y="textblob_score", data=df, color="pink", label="TextBlob Score", ax=ax)
+layout = column(stock1_text, stock2_text, date_picker_from, date_picker_to, indicator_choice, load_button)
 
-ax.set_title("Sentiment Analysis of Cryptocurrency Headlines")
-ax.set_xlabel("Dates (DD/MM/YYYY)")
-ax.set_ylabel("Sentiment Score")
-ax.tick_params(axis='x', rotation=45)  # Rotate x-axis labels for clarity
-ax.legend()
-
-plt.tight_layout()
-plt.show()
-
-
-# Step 7: Descriptive Statistics
-def descriptive_statistics():
-    print("Descriptive Statistics:\n")
-    print(df[['textblob_score', 'vader_score', 'average_score']].describe())
-
-descriptive_statistics()
-
-# Step 8: Sentiment Distribution Visualizations
-# TextBlob Sentiment Distribution
-plt.figure(figsize=(25, 8))
-sns.histplot(df['textblob_score'], bins=30, kde=True, color='blue', label='TextBlob')
-plt.title('TextBlob Sentiment Distribution')
-plt.xlabel('Sentiment Score')
-plt.ylabel('Frequency')
-plt.legend()
-plt.show()
-
-# VADER Sentiment Distribution
-plt.figure(figsize=(25, 8))
-sns.histplot(df['vader_score'], bins=30, kde=True, color='orange', label='VADER')
-plt.title('VADER Sentiment Distribution')
-plt.xlabel('Sentiment Score')
-plt.ylabel('Frequency')
-plt.legend()
-plt.show()
-
-# TextBlob vs VADER Sentiment Scores
-plt.figure(figsize=(25, 8))
-scatter = sns.scatterplot(
-    x='textblob_score',
-    y='vader_score',
-    data=df,
-    hue='sentiment_category',
-    palette='coolwarm',
-    s=100,  # Adjust marker size
-    edgecolor='black'  # Add an outline for better visibility
-)
-
-# Force all sentiment categories to appear in the legend
-handles, labels = scatter.get_legend_handles_labels()
-plt.legend(handles, labels, title="Sentiment Category", bbox_to_anchor=(1.05, 1), loc='upper left')
-
-# Add titles and axis labels
-plt.title('TextBlob vs VADER Sentiment Scores', fontsize=16)
-plt.xlabel('TextBlob Sentiment Score', fontsize=12)
-plt.ylabel('VADER Sentiment Score', fontsize=12)
-
-# Add grid and axis lines for clarity
-plt.axhline(0, color='red', linestyle='--', linewidth=1)
-plt.axvline(0, color='blue', linestyle='--', linewidth=1)
-plt.grid(True, alpha=0.5)
-
-plt.tight_layout()
-plt.show()
-
-
-print("Descriptive statistics, sentiment distributions, and comparison visualization complete.")
+curdoc().clear()
+curdoc().add_root(layout)
