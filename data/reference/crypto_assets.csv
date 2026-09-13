@@ -1,0 +1,11 @@
+asset_id,asset_name,symbol,category,launch_date,notes
+btc,Bitcoin,BTC,Store of Value / Layer 1,2009-01-03,Market benchmark for crypto beta comparisons
+eth,Ethereum,ETH,Smart Contract Platform / Layer 1,2015-07-30,Existing LSTM forecaster in repo targets this asset
+sol,Solana,SOL,Smart Contract Platform / Layer 1,2020-03-24,High-throughput Layer 1 with strong ecosystem activity
+xrp,XRP,XRP,Payments / Layer 1,2013-01-01,Existing sentiment-scraper notebook targets this asset
+bnb,Binance Coin,BNB,Exchange Token / Smart Contract Platform,2017-07-25,Large-cap exchange ecosystem asset with broad market influence
+ada,Cardano,ADA,Smart Contract Platform / Layer 1,2017-09-29,Research-heavy Layer 1 with liquidity and long-term track record
+doge,Dogecoin,DOGE,Meme / Payments,2013-12-06,High-liquidity meme coin and social-sentiment benchmark
+trx,TRON,TRX,Payments / Smart Contract Platform,2017-09-13,High-throughput transaction network with substantial market cap
+link,Chainlink,LINK,Oracle / Infrastructure,2017-09-19,Key oracle asset used in decentralized finance and data feeds
+avax,Avalanche,AVAX,Smart Contract Platform / Layer 1,2020-09-22,Subnets-based Layer 1 with strong DeFi participation
