@@ -31,7 +31,7 @@ Defines the structured universe of entities the platform tracks. Source tables l
 
 ## 4. Crypto Asset Universe
 
-BTC, ETH, SUI, XRP — see `crypto_assets.csv`. BTC/ETH serve as market-beta benchmarks (per Stage 12's request to compare AI indices against BTC/ETH); SUI and XRP are the two assets the existing repo already has partial pipelines for.
+BTC, ETH, SOL, XRP, BNB, ADA, DOGE, TRX, LINK, AVAX — see `crypto_assets.csv`. BTC/ETH serve as market-beta benchmarks (per Stage 12's request to compare AI indices against BTC/ETH); XRP is the asset the existing repo's sentiment notebook already partially targets. SUI has been deliberately excluded from the tracked universe (confirmed decision, despite the repo holding a legacy SUI OHLCV CSV from the original project) — `sui_2023-05-09_2025-02-08.csv` is retained as a historical reference file only, not a Stage 3 ingestion target.
 
 ## 5. Known Gaps / Deferred
 
