@@ -10,11 +10,12 @@ import logging
 from datetime import date
 
 from src.config import PROCESSED_DIR
+from src.ingestion.base import MarketDataProvider, NewsDataProvider
 from src.ingestion.orchestrator import default_market_providers, default_news_providers, fetch_market_with_fallback, fetch_news_with_fallback
 from src.ingestion.store import market_prices_path, news_path, round_trip_matches
 from src.ingestion.universe import build_market_universe, load_companies
 from src.ingestion.validate import validate_market_prices, validate_news
-from src.ingestion.base import MarketDataProvider, NewsDataProvider
+from src.ingestion.news_data import match_entities
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -26,13 +27,13 @@ def ingest_market_universe(start: str, end: str, market_ids: list[str] | None = 
     if market_ids:
         universe = universe[universe["market_id"].isin(market_ids)]
 
-    provider_list = providers or default_market_providers()
     report = {"start": start, "end": end, "results": [], "provider_health": []}
     for _, row in universe.iterrows():
-        market_id, symbol = row["market_id"], row["symbol"]
+        market_id, symbol, asset_type = row["market_id"], row["symbol"], row["asset_type"]
+        provider_list = providers or default_market_providers(asset_type)
         entry = {"market_id": market_id, "symbol": symbol, "status": "UNKNOWN", "issues": []}
         df, health = fetch_market_with_fallback(provider_list, symbol, start, end)
-        report["provider_health"].append({"market_id": market_id, **health})
+        report["provider_health"].append({"market_id": market_id, "asset_type": asset_type, **health})
         if df.empty:
             entry["status"] = "FETCH_FAILED"
             entry["issues"].extend(a.get("error", "provider failed") for a in health["attempts"] if a["status"] == "FAILED")
@@ -92,6 +93,7 @@ def ingest_news(max_results_per_query: int = 20, companies_limit: int | None = N
     import pandas as pd
     combined = pd.concat(all_frames, ignore_index=True)
     combined = combined.drop_duplicates(subset=["url"])
+    combined = match_entities(combined)
 
     validation = validate_news(combined)
     report["row_count"] = validation.row_count
@@ -108,6 +110,7 @@ def ingest_news(max_results_per_query: int = 20, companies_limit: int | None = N
         return report
 
     report["status"] = "PASS"
+    report["matched_company_rate"] = float(combined["matched_company_id"].notna().mean())
     return report
 
 
