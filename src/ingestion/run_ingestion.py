@@ -1,6 +1,6 @@
-"""Orchestrates the ingestion agentic loop for market prices and news:
-Fetch -> Validate -> Store -> Reload -> Compare -> Pass/Fail, with a report
-written for inspection. Run as:  python -m src.ingestion.run_ingestion
+"""Orchestrates ingestion through provider adapters:
+Fetch -> Validate -> Store -> Reload -> Compare -> Pass/Fail.
+Run as: python -m src.ingestion.run_ingestion
 """
 from __future__ import annotations
 
@@ -10,32 +10,32 @@ import logging
 from datetime import date
 
 from src.config import PROCESSED_DIR
-from src.ingestion.market_data import FetchError as MarketFetchError
-from src.ingestion.market_data import fetch_market_prices
-from src.ingestion.news_data import FetchError as NewsFetchError
-from src.ingestion.news_data import fetch_headlines, match_entities
+from src.ingestion.orchestrator import default_market_providers, default_news_providers, fetch_market_with_fallback, fetch_news_with_fallback
 from src.ingestion.store import market_prices_path, news_path, round_trip_matches
 from src.ingestion.universe import build_market_universe, load_companies
 from src.ingestion.validate import validate_market_prices, validate_news
+from src.ingestion.base import MarketDataProvider, NewsDataProvider
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def ingest_market_universe(start: str, end: str, market_ids: list[str] | None = None) -> dict:
+def ingest_market_universe(start: str, end: str, market_ids: list[str] | None = None,
+                           providers: list[MarketDataProvider] | None = None) -> dict:
     universe = build_market_universe()
     if market_ids:
         universe = universe[universe["market_id"].isin(market_ids)]
 
-    report = {"start": start, "end": end, "results": []}
+    provider_list = providers or default_market_providers()
+    report = {"start": start, "end": end, "results": [], "provider_health": []}
     for _, row in universe.iterrows():
         market_id, symbol = row["market_id"], row["symbol"]
         entry = {"market_id": market_id, "symbol": symbol, "status": "UNKNOWN", "issues": []}
-        try:
-            df = fetch_market_prices(symbol, start, end)
-        except MarketFetchError as exc:
+        df, health = fetch_market_with_fallback(provider_list, symbol, start, end)
+        report["provider_health"].append({"market_id": market_id, **health})
+        if df.empty:
             entry["status"] = "FETCH_FAILED"
-            entry["issues"].append(str(exc))
+            entry["issues"].extend(a.get("error", "provider failed") for a in health["attempts"] if a["status"] == "FAILED")
             report["results"].append(entry)
             continue
 
@@ -56,7 +56,7 @@ def ingest_market_universe(start: str, end: str, market_ids: list[str] | None = 
 
         entry["status"] = "PASS"
         report["results"].append(entry)
-        logger.info("PASS %s (%s rows)", market_id, validation.row_count)
+        logger.info("PASS %s via %s (%s rows)", market_id, health["provider"], validation.row_count)
 
     n_pass = sum(1 for r in report["results"] if r["status"] == "PASS")
     report["summary"] = {"total": len(report["results"]), "passed": n_pass,
@@ -64,23 +64,26 @@ def ingest_market_universe(start: str, end: str, market_ids: list[str] | None = 
     return report
 
 
-def ingest_news(max_results_per_query: int = 20, companies_limit: int | None = None) -> dict:
+def ingest_news(max_results_per_query: int = 20, companies_limit: int | None = None,
+                providers: list[NewsDataProvider] | None = None) -> dict:
     companies = load_companies()
     if companies_limit:
         companies = companies.head(companies_limit)
 
+    provider_list = providers or default_news_providers()
     all_frames = []
-    report = {"queries": [], "issues": []}
+    report = {"queries": [], "issues": [], "provider_health": []}
     for _, row in companies.iterrows():
         query = row["company_name"]
-        try:
-            df = fetch_headlines(query, max_results=max_results_per_query)
-            report["queries"].append({"query": query, "rows": len(df), "status": "FETCHED"})
-            if not df.empty:
-                all_frames.append(df)
-        except NewsFetchError as exc:
+        df, health = fetch_news_with_fallback(provider_list, query, max_results=max_results_per_query)
+        report["provider_health"].append({"query": query, **health})
+        if health["status"] != "PASS":
             report["queries"].append({"query": query, "rows": 0, "status": "FETCH_FAILED"})
-            report["issues"].append(f"{query}: {exc}")
+            report["issues"].append(f"{query}: all news providers failed")
+            continue
+        report["queries"].append({"query": query, "rows": len(df), "status": "FETCHED", "provider": health["provider"]})
+        if not df.empty:
+            all_frames.append(df.assign(query=query))
 
     if not all_frames:
         report["status"] = "NO_DATA"
@@ -89,7 +92,6 @@ def ingest_news(max_results_per_query: int = 20, companies_limit: int | None = N
     import pandas as pd
     combined = pd.concat(all_frames, ignore_index=True)
     combined = combined.drop_duplicates(subset=["url"])
-    combined = match_entities(combined)
 
     validation = validate_news(combined)
     report["row_count"] = validation.row_count
@@ -106,7 +108,6 @@ def ingest_news(max_results_per_query: int = 20, companies_limit: int | None = N
         return report
 
     report["status"] = "PASS"
-    report["matched_company_rate"] = float(combined["matched_company_id"].notna().mean())
     return report
 
 
