@@ -1,16 +1,15 @@
 """Provider adapters. Provider-specific API details stay behind these boundaries."""
 from __future__ import annotations
 
-import datetime as dt
 from typing import Any
 
 import pandas as pd
 import requests
 
-from src.ingestion.base import MarketDataProvider, NewsDataProvider, ProviderError, add_provenance, stable_record_id, with_retries
-from src.ingestion.standardize import standardize_market, standardize_news
+from src.ingestion.base import MarketDataProvider, NewsDataProvider, ProviderError, stable_record_id, with_retries
 from src.ingestion.market_data import fetch_market_prices
 from src.ingestion.news_data import fetch_headlines
+from src.ingestion.standardize import standardize_market, standardize_news
 
 
 class YahooFinanceProvider(MarketDataProvider):
@@ -31,10 +30,12 @@ class CoinCodexProvider(MarketDataProvider):
     def _fetch_chunk(self, symbol: str, start: str, end: str) -> pd.DataFrame:
         n_days = (pd.Timestamp(end) - pd.Timestamp(start)).days + 1
         url = f"{self.base_url}/{symbol}/{start}/{end}/{n_days}"
+
         def request() -> Any:
             response = requests.get(url, timeout=self.timeout, headers={"User-Agent": "AI-Market-Intelligence/1.0"})
             response.raise_for_status()
             return response.json()
+
         payload = with_retries(request, provider=self.name)
         rows = payload.get(symbol)
         if not rows:
@@ -79,10 +80,12 @@ class MarketauxProvider(NewsDataProvider):
         if not self.api_token:
             raise ProviderError("marketaux: MARKETAUX_API_TOKEN is not configured")
         params = {"api_token": self.api_token, "search": query, "language": "en", "limit": min(max_results, 100)}
+
         def request() -> Any:
             response = requests.get(self.url, params=params, timeout=self.timeout)
             response.raise_for_status()
             return response.json()
+
         payload = with_retries(request, provider=self.name)
         rows = []
         for item in payload.get("data", []):
