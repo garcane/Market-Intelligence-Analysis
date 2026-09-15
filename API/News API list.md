@@ -1,363 +1,460 @@
-# Free News APIs for Developers — 2026 Reference
+# News APIs and Financial News Sources — 2026 Reference
 
-A consolidated reference of free news API tiers, quotas, and use cases. Compiled from a 2026 comparison of news APIs plus additional sources useful for developer projects (Hacker News, spaceflight, SpaceX launches, and community-maintained aggregators).
+A consolidated reference of free and low-cost news APIs and financial-news sources for the **Market Intelligence Analysis** project.
 
-> **Note:** Free-tier terms, quotas, and rate limits change frequently. Always verify the current pricing and terms of service on each provider's website before building on top of them.
-
----
-
-## Quick Comparison Table
-
-| Provider | Free Tier | Rate Limit | Sources | Best For |
-|---|---|---|---|---|
-| [NewsAPI.org](https://newsapi.org) | 1,000 req/day | Dev use only | 80,000+ | Prototyping, internal tools |
-| [GNews.io](https://gnews.io) | 100 req/day | 10/min | 60,000+ | Simple projects |
-| [Currents API](https://currentsapi.services) | ~600 req/day (trial) | — | 14,000+ | Real-time global news |
-| [TheNewsAPI](https://www.thenewsapi.com) | 100 req/day | — | 50,000+ | Multi-language / multilingual |
-| [Mediastack](https://mediastack.com) | 100 req/month | — | 7,500+ | Budget apps, evaluation |
-| [Newscatcher](https://newscatcher.com) | 1,000 req/month | 1/sec | 70,000+ | Research |
-| [Google News RSS](https://news.google.com/rss) | Unlimited | — | Google | RSS integration |
-| [Bing News Search](https://www.microsoft.com/en-us/bing/apis/bing-news-search-api) | 1,000 req/month | 3 req/sec | Bing | Microsoft ecosystem |
-| [NewsData.io](https://newsdata.io) | 500 req/day | 10 articles/req | 92,000+ | International monitoring |
-| [WorldNewsAPI](https://worldnewsapi.com) | 100 req/day | 1 point/sec | 200+ countries | Rapid validation |
-| [The Guardian Open Platform](https://open-platform.theguardian.com) | 5,000 calls/day | 12 calls/sec | Guardian archive | Single-publisher depth |
-| [GDELT Project](https://www.gdeltproject.org) | Unlimited (research) | — | 100+ languages | Archival research, AI training |
-| [Marketaux](https://www.marketaux.com) | Limited free tier | — | Finance-focused | Financial / stock news |
-| [AllNewsAPI](https://allnewsapi.com) | Limited free tier | — | 250,000+ publishers | Proof of concept |
-| [NewsMesh](https://newsmesh.co) | Free starter plan | — | Thousands | Dashboards, demos |
-| [Hacker News API](https://github.com/HackerNews/API) | Unlimited | — | Hacker News | Tech / startup news |
-| [Spaceflight News API](https://api.spaceflightnewsapi.net/v3/documentation) | Unlimited | — | Space news sites | Spaceflight news |
-| [SpaceX API](https://github.com/r-spacex/SpaceX-API) | Unlimited | — | SpaceX launches | Rocket launch data |
-| [SauravKanchan/NewsAPI](https://github.com/SauravKanchan/NewsAPI) | Self-hosted | — | Google News | Community aggregator |
+> **Note:** Free-tier terms, quotas, rate limits, endpoint availability, and licensing can change frequently. Verify current provider documentation before implementation.
 
 ---
 
-## Part 1 — General News Aggregators
+## Quick Comparison
 
-### 1. NewsAPI.org
-- **Best for:** Prototyping, internal tools, academic projects
-- **Free quota:** 1,000 requests/day
-- **Limitations:** "Development use only" — no commercial use, no client-side exposure, no historical data beyond 1 month, attribution required
-- **Website:** https://newsapi.org
+| Provider | Primary Use | Access | Best For |
+|---|---|---|---|
+| **Marketaux** | Financial / stock news | API key | **Core financial news** |
+| **GDELT** | Global and macro news | Open | Historical research and large-scale analysis |
+| **Google News RSS** | General news | No key | Broad monitoring and RSS ingestion |
+| **Bing News Search** | General / business news | API | Microsoft ecosystem |
+| **Yahoo Finance / yfinance** | Company-specific financial news | Unofficial Python interface | Stock-linked news and broad market context |
+| NewsAPI.org | General news | API key | Prototyping |
+| GNews.io | General / multilingual news | API key | Simple projects |
+| NewsData.io | International news | API key | Multilingual monitoring |
+| The Guardian Open Platform | Single-publisher news | API key | Journalism/archive research |
+| Newscatcher | General news | API key | Research |
+| Currents API | Real-time news | API key | Live monitoring |
 
-Endpoints: `everything`, `top-headlines`, `sources`
+---
 
-```bash
-curl "https://newsapi.org/v2/everything?q=tesla&from=2026-02-17&sortBy=publishedAt&apiKey=API_KEY"
+# Part 1 — Core Financial News
+
+## 1. Marketaux
+
+### Overview
+
+Marketaux is a finance-focused news API designed around financial markets, companies, securities, entities, and market-related news.
+
+### Best for
+
+- Stock-specific news
+- Financial dashboards
+- Market monitoring
+- Entity and ticker extraction
+- News sentiment analysis
+- Linking news to securities
+
+### Strengths
+
+- Finance-focused coverage
+- Structured ticker/entity metadata
+- Useful timestamps and publisher information
+- Well suited to financial analytics pipelines
+
+### Project role
+
+**Core financial-news source.** Marketaux should be the primary structured source for stock and financial news.
+
+---
+
+## 2. Yahoo Finance / yfinance
+
+### Overview
+
+Yahoo Finance has a strong financial-news ecosystem, including company-specific news on stock pages and broader market coverage. However, there is an important distinction between Yahoo Finance as a website/data source and an official Yahoo Finance developer API.
+
+Yahoo's current official developer API catalogue does **not** provide a general first-party Yahoo Finance News API. The historical Yahoo Finance API was discontinued, while current Python access through `yfinance` is an unofficial interface.
+
+### Python example
+
+```python
+import yfinance as yf
+
+ticker = yf.Ticker("AAPL")
+news = ticker.news
+
+for article in news:
+    print(article)
 ```
 
-```bash
-curl "https://newsapi.org/v2/top-headlines?country=us&category=business&apiKey=API_KEY"
+### Best for
+
+- Company-specific financial news
+- Stock-linked news discovery
+- Market context
+- Combining price history and news in one Python workflow
+
+### Strengths
+
+- Convenient alongside Yahoo historical stock data
+- Broad market coverage
+- No separate news API key for common `yfinance` usage
+- Useful for exploratory analysis and portfolio projects
+
+### Limitations
+
+- `yfinance` is unofficial
+- Yahoo can change or restrict underlying endpoints
+- News results can occasionally be poorly matched to the requested ticker
+- Reliability and terms should be considered before using it as a production-critical dependency
+
+### Project role
+
+**Supplementary stock-news source** and useful companion to Yahoo Finance stock data. It should complement rather than replace Marketaux as the project's structured financial-news source.
+
+---
+
+# Part 2 — General and Macro News
+
+## 3. GDELT Project APIs
+
+- **Best for:** Academic research, large-scale analysis, macro news, AI training and historical research
+- **Access:** Open / research-oriented
+- **Coverage:** Global, multilingual
+- **Strength:** Large-scale news monitoring and historical context
+- **Limitation:** More complex than a conventional headline API
+
+GDELT can identify people, locations, organisations, themes, emotions and other signals across global news.
+
+### Project role
+
+**Core supplementary source for macroeconomic, geopolitical and historical news analysis.**
+
+---
+
+## 4. Google News RSS
+
+- **Best for:** Broad news monitoring and RSS ingestion
+- **Access:** No API key
+- **Format:** RSS/XML
+
+Example topic feed:
+
+```text
+https://news.google.com/rss/search?q=your+topic&hl=en-US&gl=US&ceid=US:en
 ```
 
----
+Top headlines:
 
-### 2. GNews.io
-- **Best for:** Startups, low-cost apps, multi-language support
-- **Free quota:** 100 requests/day
-- **Limitations:** Free tier bars commercial use; sources narrower than larger aggregators
-- **Website:** https://gnews.io
+```text
+https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en
+```
 
-Endpoints: `search`, `top-headlines`. Filters cover country, language, and category. JSON over HTTPS.
+### Project role
 
----
-
-### 3. Currents API
-- **Best for:** Lightweight real-time monitoring, news tickers, dashboard widgets
-- **Free quota:** Trial tier with limited requests (approx. 600/day in some plans)
-- **Limitations:** Narrower source breadth; tight trial limits require upgrading for production
-- **Website:** https://currentsapi.services
-
-Best fit for "what's new now" apps — immediacy over archival depth.
+**General-news supplementary source** with very low integration overhead.
 
 ---
 
-### 4. TheNewsAPI
-- **Best for:** Small personal projects, daily data modeling, low-volume tickers
-- **Free quota:** 100 requests/day
-- **Limitations:** Low daily limit; caps articles per request; historical depth may not suit niche research
-- **Website:** https://www.thenewsapi.com
+## 5. Bing News Search
 
-Endpoints: headlines, top stories, all articles. Standard language/source/date parameters.
+- **Best for:** General and business news
+- **Historical free-tier reference:** 1,000 requests/month and 3 requests/second
+- **Project role:** Supplementary general-news source
 
----
-
-### 5. Mediastack
-- **Best for:** Low-volume apps, API evaluation, multi-language projects
-- **Free quota:** 100 requests/month
-- **Limitations:** 30-minute data delay, no historical data on free tier, non-commercial only, attribution required
-- **Website:** https://mediastack.com
-
-7,500+ sources across 50 countries. Free tier is for evaluation, not intensive use.
+> **Important:** Microsoft has retired or changed several Bing Search APIs over time. Verify current availability and migration requirements before implementation.
 
 ---
 
-### 6. Newscatcher
-- **Best for:** Research
-- **Free quota:** 1,000 requests/month
-- **Rate limit:** 1 request/second
-- **Sources:** 70,000+
-- **Website:** https://newscatcher.com
+# Part 3 — General News Aggregators
+
+## 6. NewsAPI.org
+
+- **Best for:** Prototyping, internal tools and academic projects
+- **Free-tier reference:** 1,000 requests/day
+- **Limitations:** Development-use restrictions, limited historical depth and attribution requirements may apply
+
+Endpoints include `everything`, `top-headlines`, and `sources`.
+
+```bash
+curl "https://newsapi.org/v2/everything?q=tesla&sortBy=publishedAt&apiKey=API_KEY"
+```
+
+### Project role
+
+**Experimental general-news source.**
 
 ---
 
-### 7. NewsData.io
-- **Best for:** Small projects, international news monitoring, multilingual feeds
-- **Free quota:** 500 requests/day with up to 10 articles per request
-- **Limitations:** Query character limits; historical and real-time endpoints reserved for paid tiers; coverage varies by region
-- **Website:** https://newsdata.io
+## 7. GNews.io
 
-Search historical news data back to January 2018 across 92,000+ sources. JSON or Excel output.
+- **Best for:** General and multilingual news
+- **Free-tier reference:** 100 requests/day
+- **Limitations:** Free-tier commercial restrictions may apply
+
+### Project role
+
+**Experimental general-news source.**
+
+---
+
+## 8. NewsData.io
+
+- **Best for:** International and multilingual news monitoring
+- **Free-tier reference:** 500 requests/day, subject to current plan
+- **Strength:** Broad international coverage
+- **Limitation:** Endpoint and historical-data availability varies by plan
+
+Example:
 
 ```bash
 curl "https://newsdata.io/api/1/news?apikey=YOUR_KEY&q=keyword&country=us"
 ```
 
----
+### Project role
 
-### 8. WorldNewsAPI
-- **Best for:** Rapid project validation, hobbyist apps, developers new to news APIs
-- **Free quota:** 100 requests/day, 1 point/second
-- **Limitations:** Daily caps; may lack historical depth and advanced cleaning for BI/AI training
-- **Website:** https://worldnewsapi.com
-
-No credit card needed for onboarding. Filter by keyword, date range, source domain. Sources in 86+ languages across 200+ countries.
+**Supplementary / experimental general-news source.**
 
 ---
 
-### 9. The Guardian Open Platform (Content API)
-- **Best for:** Academic research, content analysis, non-commercial apps needing high-quality journalism
-- **Free quota:** 5,000 calls/day, 12 calls/second
-- **Limitations:** Non-commercial only, attribution required, single-publisher (no multi-source coverage)
-- **Website:** https://open-platform.theguardian.com
+## 9. Currents API
 
-Exposes The Guardian's own archive of 2M+ pieces of content, tags, and sections. Excellent for textual analysis or knowledge graphs.
+- **Best for:** Real-time monitoring, news tickers and dashboards
+- **Free access:** Limited trial/free tier depending on current plan
+- **Strength:** Immediacy
+- **Limitation:** Smaller coverage and tighter limits than major aggregators
 
-```bash
-curl "https://content.guardianapis.com/search?q=climate&api-key=YOUR_KEY"
+### Project role
+
+**Experimental real-time news source.**
+
+---
+
+## 10. TheNewsAPI
+
+- **Best for:** Small projects and low-volume news monitoring
+- **Free-tier reference:** 100 requests/day
+- **Limitation:** Low request limits and potentially limited historical depth
+
+### Project role
+
+**Experimental source.**
+
+---
+
+## 11. Mediastack
+
+- **Best for:** Budget applications and API evaluation
+- **Free-tier reference:** 100 requests/month
+- **Limitations:** Data delay, historical restrictions and commercial-use limitations may apply
+
+### Project role
+
+**Experimental source.**
+
+---
+
+## 12. Newscatcher
+
+- **Best for:** News research
+- **Free-tier reference:** 1,000 requests/month
+- **Rate limit reference:** 1 request/second
+
+### Project role
+
+**Research-oriented alternative.**
+
+---
+
+## 13. WorldNewsAPI
+
+- **Best for:** Rapid project validation and international news
+- **Free-tier reference:** 100 requests/day
+- **Coverage:** International and multilingual
+
+### Project role
+
+**Experimental alternative.**
+
+---
+
+## 14. The Guardian Open Platform
+
+- **Best for:** Journalism research, content analysis and archive research
+- **Free-tier reference:** 5,000 calls/day
+- **Limitation:** Single publisher and licensing/attribution requirements apply
+
+### Project role
+
+**Specialised research source.**
+
+---
+
+# Part 4 — Additional / Specialised Sources
+
+## 15. Hacker News API
+
+Useful for technology, startup and developer-related news.
+
+- **Access:** Open
+- **Best for:** Technology and startup monitoring
+
+Base URL:
+
+```text
+https://hacker-news.firebaseio.com/v0
 ```
 
 ---
 
-### 10. GDELT Project APIs
-- **Best for:** Academic research, large-scale data analysis, AI model training
-- **Free quota:** Unlimited (research-grade)
-- **Limitations:** Complex to implement; not a headline API; scattered documentation
-- **Website:** https://www.gdeltproject.org
+## 16. Spaceflight News API
 
-Monitors news in 100+ languages, identifying people, locations, organizations, themes, and emotions. JSON and GeoJSON APIs.
+Useful for space-industry and aerospace monitoring.
 
----
+- **Access:** Open
+- **Best for:** Spaceflight news
 
-### 11. Marketaux
-- **Best for:** Financial dashboards, fintech apps, stock-specific news tracking
-- **Free quota:** Limited free tier for evaluation
-- **Limitations:** Limited historical data; fewer endpoints; finance-only (not general news)
-- **Website:** https://www.marketaux.com
+Base URL:
 
-Covers equities, tickers, and economic topics. JSON responses include publisher details, ticker mentions, and precise timestamps — useful for sentiment analysis.
-
----
-
-### 12. AllNewsAPI
-- **Best for:** Mobile applications, budget-conscious projects, proof of concept
-- **Free quota:** Limited free tier
-- **Limitations:** Newer service — long-term reliability and source breadth less proven
-- **Website:** https://allnewsapi.com
-
-Filters for keyword, source, and language. 196 countries, 250,000+ publishers, 29 categories, 22 languages.
-
----
-
-### 13. NewsMesh
-- **Best for:** Dashboards, proofs of concept, API evaluation
-- **Free quota:** Free starter plan
-- **Limitations:** Newer service; review SLAs and support; source breadth and historical depth may not suit enterprise
-- **Website:** https://newsmesh.co
-
-Real-time news coverage with structured JSON. Trending endpoint example:
-
-```bash
-curl "https://api.newsmesh.co/v2/trending"
-```
-
-Response includes `article_id`, `title`, `description`, `link`, `published_date`, `source`, `category`, `topics`, `people`, `author`.
-
----
-
-## Part 2 — Additional / Specialized APIs
-
-### 14. Hacker News API
-- **Best for:** Tech and startup news, developer dashboards
-- **Free quota:** Unlimited
-- **Base URL:** https://hacker-news.firebaseio.com/v0
-- **Docs:** https://github.com/HackerNews/API
-
-Item endpoint example:
-
-```bash
-curl "https://hacker-news.firebaseio.com/v0/item/8863.json"
-```
-
-Other useful endpoints:
-- `https://hacker-news.firebaseio.com/v0/topstories.json`
-- `https://hacker-news.firebaseio.com/v0/newstories.json`
-- `https://hacker-news.firebaseio.com/v0/askstories.json`
-- `https://hacker-news.firebaseio.com/v0/showstories.json`
-- `https://hacker-news.firebaseio.com/v0/jobstories.json`
-
----
-
-### 15. Spaceflight News API
-- **Best for:** Spaceflight news, space industry monitoring
-- **Free quota:** Unlimited (no key required)
-- **Base URL:** https://api.spaceflightnewsapi.net/v3
-- **Docs:** https://api.spaceflightnewsapi.net/v3/documentation
-
-Articles endpoint:
-
-```bash
-curl "https://api.spaceflightnewsapi.net/v3/articles"
-```
-
-Also supports `/articles/count`, `/articles/{id}`, `/blogs`, and `/reports`.
-
----
-
-### 16. SpaceX API (r-spacex)
-- **Best for:** Rocket launch data, mission tracking, aerospace dashboards
-- **Free quota:** Unlimited (no key required)
-- **Base URL:** https://api.spacexdata.com/v5
-- **Docs:** https://github.com/r-spacex/SpaceX-API
-
-Latest launch endpoint:
-
-```bash
-curl "https://api.spacexdata.com/v5/launches/latest"
-```
-
-Other endpoints:
-- `https://api.spacexdata.com/v5/launches`
-- `https://api.spacexdata.com/v5/launches/past`
-- `https://api.spacexdata.com/v5/launches/upcoming`
-- `https://api.spacexdata.com/v5/rockets`
-- `https://api.spacexdata.com/v5/crew`
-- `https://api.spacexdata.com/v5/starlink`
-
----
-
-### 17. SauravKanchan/NewsAPI (Community Aggregator)
-- **Best for:** Self-hosted news aggregation, Google News scraping
-- **Repository:** https://github.com/SauravKanchan/NewsAPI
-- **Type:** Open-source, self-hosted (no hosted free tier; you run it)
-
-Community-maintained News API that aggregates Google News headlines. Useful if you want full control over the deployment and don't want to depend on a hosted free tier.
-
----
-
-### 18. Google News RSS
-- **Best for:** RSS integration, no-key quick feeds
-- **Free quota:** Unlimited
-- **Format:** RSS/XML
-
-Topic feed example:
-
-```
-https://news.google.com/rss/search?q=your+topic&hl=en-US&gl=US&ceid=US:en
-```
-
-Top headlines:
-```
-https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en
+```text
+https://api.spaceflightnewsapi.net/v3
 ```
 
 ---
 
-### 19. Bing News Search
-- **Best for:** Microsoft ecosystem users
-- **Free quota:** 1,000 requests/month
-- **Rate limit:** 3 requests/second
-- **Docs:** https://www.microsoft.com/en-us/bing/apis/bing-news-search-api
+## 17. SpaceX API
 
-> Note: Microsoft has been retiring several Bing Search APIs. Verify availability and migration path (e.g., to Azure AI services) before adopting.
+Useful for launch and aerospace data rather than conventional news.
+
+- **Access:** Open
+- **Best for:** Launch and mission data
+
+Base URL:
+
+```text
+https://api.spacexdata.com/v5
+```
 
 ---
 
-## Part 3 — Choosing the Right API
+## 18. Community NewsAPI
 
-### By use case
+Community-maintained and self-hosted news aggregation projects can provide an alternative where full deployment control is desirable.
 
-| Use case | Recommended |
+### Project role
+
+**Experimental / self-hosted alternative.**
+
+---
+
+# Part 5 — Financial News Architecture
+
+For the Market Intelligence Analysis project, financial news should be separated from general news because financial sources provide additional market-specific metadata.
+
+```text
+                         NEWS
+                          │
+             ┌────────────┴────────────┐
+             │                         │
+      FINANCIAL NEWS              GENERAL NEWS
+             │                         │
+      ┌──────┴──────┐          ┌──────┼──────┐
+      │             │          │      │      │
+  Marketaux     Yahoo/yfinance GDELT Google  Bing
+      │             │          RSS
+      └──────┬──────┘          │
+             │                 │
+             └────────┬────────┘
+                      ▼
+             News Standardisation
+                      │
+             Deduplication / QA
+                      │
+             Entity / Ticker Mapping
+                      │
+             Sentiment / Classification
+                      │
+                      ▼
+              Market Intelligence
+```
+
+---
+
+# Part 6 — Choosing the Right News Source
+
+| Use Case | Recommended Source |
 |---|---|
-| General monitoring (broad coverage) | NewsAPI.org, GNews.io, NewsData.io |
-| Single-publisher depth | The Guardian Open Platform |
-| Finance / stocks | Marketaux |
-| Archival research / AI training | GDELT |
-| Real-time tickers / alerts | Currents API |
-| Tech / startup news | Hacker News API |
-| Space / aerospace | Spaceflight News API, SpaceX API |
-| RSS-only, no API key | Google News RSS |
-| Self-hosted / full control | SauravKanchan/NewsAPI |
-| Multilingual | GNews.io, NewsData.io, WorldNewsAPI |
-
-### Decision checklist
-
-1. **Commercial vs. non-commercial** — Many free tiers (NewsAPI.org, GNews, Mediastack, The Guardian) forbid commercial use or require attribution.
-2. **Real-time vs. archival** — GDELT is the archival pick; Currents API and Hacker News are real-time.
-3. **Volume** — A proof of concept may fit in a few hundred calls; production usually needs tens of thousands and a paid plan.
-4. **Data depth** — Headlines and URLs only, or full article text, author info, and rich metadata? Many free tiers return only a snippet.
-5. **Coverage breadth** — Validate source depth for your niche topic or locale; regional coverage varies widely.
-6. **Reliability** — Newer services (AllNewsAPI, NewsMesh) may lack proven uptime and SLAs.
+| Stock-specific financial news | **Marketaux** |
+| Yahoo Finance-specific news | **Yahoo Finance / yfinance** |
+| Broad global news | **GDELT** |
+| No-key general news | **Google News RSS** |
+| General / business news | **Bing News** |
+| Simple general-news API | GNews / NewsAPI.org |
+| International monitoring | NewsData.io / WorldNewsAPI |
+| Historical research | **GDELT** |
+| Technology / startup news | Hacker News API |
+| Specialised aerospace news | Spaceflight News API |
 
 ---
 
-## Part 4 — Data Freshness Reality Check
+# Part 7 — Recommended Stack for This Project
 
-A July 2026 sampling of 48 news queries found that **~31% of top-10 results turned over within 8 hours**, and on fast-moving brand/topic queries roughly **half the top 10 was replaced**. Free RSS paths are deep but stale: the median item age in the same sample was about **6.6 days**.
+### Core
 
-**Implication:** A free plan capped at a daily pull is not a slower version of a paid one — on a brand or crisis query, it may be looking at a substantially different set of articles.
+1. **Marketaux** — structured financial and stock news
+2. **GDELT** — global, macro and historical news
+3. **Google News RSS** — broad no-key news discovery
+4. **Yahoo Finance / yfinance** — stock-linked news and Yahoo Finance context
+
+### Supplementary
+
+5. **Bing News** — general and business news
+6. **NewsData.io / GNews** — additional general-news coverage
+
+### Experimental
+
+7. **NewsAPI.org**
+8. **Currents API**
+9. **Newscatcher**
+10. **The Guardian Open Platform**
+11. Other specialised sources as required
 
 ---
 
-## Part 5 — Legal Notes
+# Part 8 — Data Quality and Legal Considerations
 
-- Calling a news API with your own key is legal; the limits that bind you are the provider's terms.
-- Free tiers typically restrict **commercial use** and may require **attribution**.
-- **Republishing full article text** is a separate copyright question from API access.
-- Always check the provider's ToS for: commercial-use rights, attribution requirements, caching/storage limits, and redistribution rules.
+Before using a source in a production pipeline, check:
+
+1. **Commercial-use rights** — free access does not necessarily mean unrestricted commercial use.
+2. **Attribution requirements** — some providers require visible attribution.
+3. **Rate limits** — ensure the quota is sufficient for the intended ingestion schedule.
+4. **Historical depth** — confirm that the provider exposes the period required for analysis.
+5. **Data freshness** — a daily free-tier pull may not capture fast-moving events.
+6. **Deduplication** — the same article may appear through multiple aggregators.
+7. **Entity mapping** — map companies and tickers consistently across providers.
+8. **Copyright** — API access does not automatically grant rights to republish full article content.
+9. **Unofficial interfaces** — treat wrappers such as `yfinance` differently from official APIs when assessing reliability and terms.
 
 ---
 
-## Appendix — Minimal Python Fetch Examples
+# Final Recommendation
 
-```python
-import requests
+The preferred architecture is to use **Marketaux as the primary financial-news API**, supported by **Yahoo Finance / yfinance**, **GDELT**, **Google News RSS**, and **Bing News** for broader coverage and validation.
 
-# NewsAPI.org
-r = requests.get(
-    "https://newsapi.org/v2/top-headlines",
-    params={"country": "us", "apiKey": "YOUR_KEY"},
-)
-print(r.json())
+This gives the project several independent perspectives:
 
-# Hacker News (no key)
-r = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json")
-top_ids = r.json()[:5]
-for item_id in top_ids:
-    item = requests.get(
-        f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json"
-    ).json()
-    print(item.get("title"))
+```text
+Marketaux
+    └── Financial / stock-specific news
 
-# Spaceflight News (no key)
-r = requests.get("https://api.spaceflightnewsapi.net/v3/articles")
-print(r.json())
+Yahoo Finance / yfinance
+    └── Stock-linked news and market context
 
-# SpaceX latest launch (no key)
-r = requests.get("https://api.spacexdata.com/v5/launches/latest")
-print(r.json()["name"], r.json()["date_utc"])
+GDELT
+    └── Global / macro / historical context
+
+Google News RSS
+    └── Broad general-news discovery
+
+Bing News
+    └── General / business-news coverage
+            │
+            ▼
+      Unified News Dataset
+            │
+      ├── Deduplication
+      ├── Entity mapping
+      ├── Ticker mapping
+      ├── Sentiment
+      ├── Topic classification
+      └── Market-event analysis
 ```
 
----
-
-*Compiled September 2026. Verify all quotas and terms on provider websites before use.*
+*Compiled September 2026. Verify all current quotas, licensing conditions and terms before implementation.*
