@@ -1,13 +1,14 @@
 """Provider orchestration with fallback, provenance and health reporting."""
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from time import perf_counter
 
 import pandas as pd
 
 from src.ingestion.base import MarketDataProvider, NewsDataProvider
-from src.ingestion.providers import CoinCodexProvider, GoogleNewsProvider, YahooFinanceProvider
+from src.ingestion.providers import CoinCodexProvider, GoogleNewsProvider, MarketauxProvider, YahooFinanceProvider
 
 
 def fetch_market_with_fallback(providers: list[MarketDataProvider], symbol: str, start: str, end: str) -> tuple[pd.DataFrame, dict]:
@@ -42,9 +43,15 @@ def fetch_news_with_fallback(providers: list[NewsDataProvider], query: str, max_
     return pd.DataFrame(), health
 
 
-def default_market_providers() -> list[MarketDataProvider]:
-    return [YahooFinanceProvider(), CoinCodexProvider()]
+def default_market_providers(asset_type: str | None = None) -> list[MarketDataProvider]:
+    if asset_type == "crypto":
+        return [CoinCodexProvider(), YahooFinanceProvider()]
+    return [YahooFinanceProvider()]
 
 
 def default_news_providers() -> list[NewsDataProvider]:
-    return [GoogleNewsProvider()]
+    providers: list[NewsDataProvider] = []
+    if os.getenv("MARKETAUX_API_TOKEN"):
+        providers.append(MarketauxProvider())
+    providers.append(GoogleNewsProvider())
+    return providers
