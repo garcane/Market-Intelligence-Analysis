@@ -54,3 +54,23 @@ def build_market_universe() -> pd.DataFrame:
     if not duplicates.empty:
         raise ValueError(f"Duplicate market_id in universe:\n{duplicates}")
     return universe
+
+
+def entity_to_market_map() -> dict[str, str]:
+    """Maps every matched_company_id / matched_asset_id (as used in fact_news)
+    to its market_id in dim_market, for entities that are actually tracked with
+    price data. Companies with no ticker (private labs) and crypto assets not
+    in the tracked universe are simply absent from the returned mapping.
+    """
+    universe = build_market_universe()
+    company_map = {
+        row.company_id: row.market_id
+        for row in universe.itertuples()
+        if row.asset_type == "equity" and pd.notna(row.company_id)
+    }
+    crypto_map = {
+        row.crypto_asset_id: row.market_id
+        for row in universe.itertuples()
+        if row.asset_type == "crypto" and pd.notna(row.crypto_asset_id)
+    }
+    return {**company_map, **crypto_map}

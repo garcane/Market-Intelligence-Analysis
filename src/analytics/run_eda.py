@@ -20,6 +20,7 @@ from src.analytics.relationships import (
 )
 from src.analytics.sentiment_stats import daily_sentiment, label_distribution, sentiment_by_entity
 from src.config import OUTPUTS_DIR, PROCESSED_DIR, RAW_DIR
+from src.ingestion.universe import entity_to_market_map
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -147,10 +148,8 @@ def main() -> None:
         plt.savefig(FIGURES_DIR / "07_sentiment_by_company.png", dpi=110)
         plt.close(fig)
 
-        # --- Relationships: microsoft news sentiment vs MSFT returns (if both exist) ---
-        entity_market_map = {"microsoft": "MSFT", "alphabet": "GOOGL", "amazon": "AMZN",
-                              "apple": "AAPL", "meta": "META"}
-        for entity_id, market_id in entity_market_map.items():
+        # --- Relationships: per-company news sentiment vs that company's own return ---
+        for entity_id, market_id in entity_to_market_map().items():
             if market_id not in market_stats:
                 continue
             entity_daily = daily_sentiment(

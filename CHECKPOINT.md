@@ -4,6 +4,91 @@ Running log of stage completions, per the target prompt's checkpoint system. New
 
 ---
 
+## Stage 8 — Temporal Train/Validation/Test Split
+
+**Status:** COMPLETE
+
+**Completed:**
+- `src/models/split.py` — `assign_split` (row-exact embargo using each row's `target_date_{h}d`, not a calendar-day approximation), `add_split_labels` (per-horizon split columns), `walk_forward_folds` (expanding-window utility, seeded now for Stage 19).
+- `src/models/run_split.py` — orchestrator: merge Stage 6 features + Stage 7 targets 1:1 on `(market_id, date)` → apply per-horizon split → validate (chronological ordering re-checked independently of the unit tests, on the real merged dataset) → store with round-trip check.
+- `SPLIT.md` — full methodology, the concrete embargo example verified against real MSFT data, and live split-count table.
+- `tests/test_split.py` — 9 offline tests, most importantly a synthetic-data proof that embargo correctly identifies exactly the rows whose label crosses the split boundary, plus a regression guard that row order is never shuffled.
+
+**Tests Passed:**
+- `pytest tests/` — 81/81 passed (full suite, Stages 3–8).
+- Live run against real Stage 6/7 data: 6,069 rows merged 1:1 (no silent row loss in the feature/target join — checked explicitly, would raise if the merge dropped anything). Split counts land within a point of the intended 60/20/20 at every horizon (e.g. 5-day: 60.6%/20.0%/18.3%).
+- Manually traced one real embargo case end-to-end (MSFT, 5-day horizon): the row dated 2025-05-23 has `target_date_5d = 2025-06-02`, one day past `train_end = 2025-05-31` — correctly labeled `excluded_embargo`, not `train`. This is the subtle leakage vector (label crossing a split boundary) that a naive "just don't shuffle" split would still miss.
+- Embargo row counts scale exactly as expected with horizon (12 / 60 / 120 rows at 1d / 5d / 10d — matches the predicted `2 boundaries × h days × 6 assets` formula).
+
+**Known Issues:**
+- Boundary dates (`train_end=2025-05-31`, `val_end=2026-01-31`) are fixed constants computed once against the ingestion range at the time of this stage. If the ingested date range changes materially (e.g. a much longer backfill later), these should be recomputed — `SPLIT.md` documents how they were derived so this is a quick redo, not a mystery.
+- `walk_forward_folds()` is implemented and unit-tested but not yet wired into any live report — it's prerequisite infrastructure for Stage 19 (Robustness Testing), not used by Stage 9's primary single-split experiment.
+
+**Files Changed:**
+`src/features/target.py` (added `target_date_{h}d`), `src/models/{__init__,split,run_split}.py`, `tests/test_split.py`, `SPLIT.md`.
+
+**Next Stage:** Stage 9 — Baseline Models (Logistic Regression, Random Forest, XGBoost, HistGradientBoosting), trained on `split_5d == "train"`, evaluated on `validation`, using this stage's `ml_dataset.parquet` directly.
+
+---
+
+## Stage 7 — Define the Classification Target
+
+**Status:** COMPLETE
+
+**Completed:**
+- `src/features/target.py` — `add_future_returns` (the codebase's one deliberately forward-looking function, `.shift(-h)`), `add_classification_targets` (threshold logic, per-horizon thresholds supported), `build_target_table`. Kept structurally separate from `src/features/pipeline.py`'s feature table.
+- `src/features/target_analysis.py` — empirical class-balance grid across threshold/horizon candidates, and realized-volatility-by-asset, used to justify (not assert) the threshold choice.
+- `src/features/run_target.py` — orchestrator: build → validate (binary values, NaN exactly on the last h rows per asset, no dupes) → store with round-trip check → write class-balance/volatility reports.
+- `TARGET.md` — full justification using real computed numbers from the live 6-asset universe: 2% threshold chosen because it's the most class-balanced (28–44% positive across assets) among 0%/1%/2%/3%/5% candidates, and represents 0.21σ–0.55σ of 5-day realized volatility depending on asset (documented as a real heterogeneity limitation, not glossed over). 5-day horizon chosen as the most balanced/least-overlapping among 1d/5d/10d candidates.
+- `tests/test_target.py` — 12 offline tests, including a directional regression test (`test_is_genuinely_forward_looking_not_accidentally_backward`) that would catch an accidental `shift(+h)` vs `shift(-h)` sign error — exactly the kind of subtle bug that would otherwise silently break the entire modelling stage.
+
+**Tests Passed:**
+- `pytest tests/` — 72/72 passed (full suite, Stages 3–7).
+- Live run against real Stage 3 data: 6,069 target rows across 6 assets, all three horizons. Validation confirmed binary-only target values and NaN exactly on each asset's last h rows (e.g. last 5 rows of every asset are NaN for `target_5d`) — no fabricated labels at the edge of the data.
+
+**Known Issues:**
+- Threshold heterogeneity across asset classes is real and documented in `TARGET.md`, not fixed here — a single fixed 2% threshold means materially different things (in volatility-normalized terms) for MSFT vs SOL. A volatility-normalized threshold is flagged as a Stage 9 robustness-testing candidate, not implemented as part of the primary experiment (which follows the spec's literal fixed-threshold example).
+- No walk-forward/temporal split yet — that's Stage 8, immediately next. The target table itself has no train/test designation.
+
+**Files Changed:**
+`src/features/{target,target_analysis,run_target}.py`, `tests/test_target.py`, `TARGET.md`.
+
+**Next Stage:** Stage 8 — Temporal Train/Validation/Test Split (chronological, not random — this is where the Stage 3 XGBoost notebook's original leakage bug from `PROJECT_AUDIT.md` gets explicitly avoided in the new pipeline).
+
+---
+
+## Stage 6 — Feature Engineering
+
+**Status:** COMPLETE (AI event feature category explicitly deferred — see below, not a silent gap)
+
+**Completed:**
+- `src/features/market_features.py` — lagged returns, rolling returns, rolling volatility (reused from `market_stats.py`), moving averages, momentum, RSI, volume change/ratio, drawdown (reused). All strictly causal via `.shift()`/right-aligned `.rolling()`.
+- `src/features/sentiment_features.py` — current/lagged/rolling sentiment, sentiment volatility, positive/negative ratio, news volume, joined onto each asset's own calendar. No-news days get `news_volume=0` (fact) but `NaN` sentiment (not fabricated neutral).
+- `src/features/cross_sectional_features.py` — market return, AI-index return (equity-only), sector return (via `company_ai_categories.csv`), relative performance.
+- `src/features/pipeline.py` — combines all three groups into one long table (`market_id`, `date`, features).
+- `src/features/{validate,run_features}.py` — schema/duplicate/monotonic-date validation, round-trip storage.
+- `src/ingestion/universe.py` — added `entity_to_market_map()`, generalizing an ad-hoc dict that had been hard-coded in Stage 5's `run_eda.py`; refactored `run_eda.py` to use it (removes duplication, and now covers all entities, not just the 5 originally hard-coded).
+- `FEATURES.md` — full feature dictionary with formulas, windows, and the AI-event deferral rationale.
+- `tests/test_features.py` — 16 offline tests, most importantly `test_market_features_unaffected_by_future_mutation`: mutates all price/volume data after a cutoff and asserts every feature column before the cutoff is byte-identical — the actual proof of Rule 4 compliance, not just a claim of it.
+
+**Tests Passed:**
+- `pytest tests/` — 60/60 passed (full suite, Stages 3–6).
+- Live run against real Stage 3/4 data: 6,069 feature rows across 6 assets (BTC, ETH, MSFT, NVDA, SOL, TSM), 41 feature columns. Manually spot-checked one row (MSFT, 2023-10-24): `relative_performance` (0.002411) matches `return_1d − market_return` (0.003674 − 0.001263) by hand-calculation.
+- Post-warmup null-rate check: `return_1d`, `sma_50d`, `rsi_14d`, `market_return`, `ai_index_return`, `news_volume` are 0% null after each feature's warm-up window — no silent data holes in the parts of the table that should be dense.
+
+**Known Issues:**
+- **AI event features are not implemented** — deliberate scope decision (confirmed with the user), documented in `FEATURES.md`, not a bug. No event data source exists (`fact_model_release`/`fact_company_event` were never ingested in Stage 3). Real prerequisite work belongs with Stage 11 (Event Study), which needs the same data.
+- `sentiment_current` is non-null for well under 1% of trading days in the live run (real news coverage is sparse relative to years of price history given the key-free RSS source's no-archive limitation — same root cause as the Stage 5 `n=4` relationship-analysis limitation). Downstream modelling stages must handle this as a very sparse feature, not assume dense coverage.
+- Cross-sectional benchmarks (`market_return`, `sector_return`) include the asset itself in its own benchmark (equal-weighted, include-self convention) — a known small-universe artifact documented in `FEATURES.md`, not corrected for yet.
+- A notebook (`notebooks/01_data_exploration.ipynb` or similar) still does not exist for Stage 5/6 — remains deferred to Stage 15 per the user's earlier decision.
+
+**Files Changed:**
+`src/features/{__init__,market_features,sentiment_features,cross_sectional_features,pipeline,validate,run_features}.py`, `src/ingestion/universe.py` (added `entity_to_market_map`), `src/analytics/run_eda.py` (refactored to use it), `tests/test_features.py`, `FEATURES.md`.
+
+**Next Stage:** Stage 7 — Define the Classification Target (this is where the leakage-safety work in this stage gets tested for real: target construction must align `future_5d_return` to features(t) without any overlap).
+
+---
+
 ## Stage 5 — Exploratory Data Analysis
 
 **Status:** COMPLETE
