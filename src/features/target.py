@@ -18,6 +18,17 @@ PRIMARY_HORIZON = 5
 # See TARGET.md for the empirical justification of this threshold.
 DEFAULT_THRESHOLD = 0.02
 
+# The classification-modeling universe (Stages 6-9). Explicit, not "every
+# asset currently in data/raw/market_prices/" — Stage 12 additively ingested
+# more equities (for the AI thematic indices) and 3 benchmark series (SPX,
+# NASDAQ, SOXX) into that same directory for a separate analytics purpose,
+# and neither group has (or needs) a classification target. Before this was
+# made explicit, src/features/run_features.py globbed the whole directory and
+# src/models/run_split.py's feature/target merge validation correctly caught
+# the resulting mismatch (features for 17 assets, targets for 6) rather than
+# silently dropping rows — see CHECKPOINT.md's Stage 8 entry for detail.
+MODELING_MARKET_IDS = ("NVDA", "MSFT", "TSM", "BTC", "ETH", "SOL")
+
 
 def add_future_returns(df: pd.DataFrame, horizons: tuple[int, ...] = HORIZONS,
                         price_col: str = "close") -> pd.DataFrame:

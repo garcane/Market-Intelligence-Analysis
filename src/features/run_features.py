@@ -11,6 +11,7 @@ import pandas as pd
 
 from src.config import PROCESSED_DIR, RAW_DIR
 from src.features.pipeline import build_all_features
+from src.features.target import MODELING_MARKET_IDS
 from src.features.validate import validate_features
 from src.ingestion.store import round_trip_matches
 
@@ -18,9 +19,22 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 logger = logging.getLogger(__name__)
 
 
-def load_market_prices() -> dict[str, pd.DataFrame]:
+def load_market_prices(market_ids: tuple[str, ...] = MODELING_MARKET_IDS) -> dict[str, pd.DataFrame]:
+    """Restricted to the explicit modeling universe, not everything in
+    data/raw/market_prices/ — that directory also holds Stage 12's index-
+    analysis equities and benchmark series, which have no classification
+    target and shouldn't flow into the modeling pipeline. See
+    src/features/target.py::MODELING_MARKET_IDS.
+    """
     market_dir = RAW_DIR / "market_prices"
-    return {path.stem: pd.read_parquet(path) for path in sorted(market_dir.glob("*.parquet"))}
+    result = {}
+    for market_id in market_ids:
+        path = market_dir / f"{market_id}.parquet"
+        if path.exists():
+            result[market_id] = pd.read_parquet(path)
+        else:
+            logger.warning("modeling asset %s has no ingested price data — skipping", market_id)
+    return result
 
 
 def main() -> None:

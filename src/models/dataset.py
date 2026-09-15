@@ -46,9 +46,24 @@ def impute_sparse_features(df: pd.DataFrame, sparse_cols: list[str] = SPARSE_FEA
     tell "genuinely zero" apart from "no data" if the signal is useful.
     `news_volume`'s NaN (if any) means "no article that day", which already
     equals 0 in the source data — flagged the same way for consistency.
+
+    A sparse column can be entirely absent from `df`, not just NaN within
+    it — e.g. if every asset in a given batch lacks an AI-category sector
+    match, src/features/pipeline.py's per-asset frames never contribute a
+    `sector_return` column at all, so it's missing after concatenation
+    rather than present-with-NaN (caught by tests/test_pipeline.py's
+    end-to-end integration test, using synthetic assets with no real-world
+    entity/sector match — a case that never occurred with the actual
+    ingested universe, where at least one asset always has a sector match,
+    but is still a real robustness gap for any future batch that doesn't).
+    Columns absent entirely are created as all-NaN before the same
+    missingness-flag + fillna(0) logic runs, so this function's behavior
+    doesn't depend on what the upstream feature pipeline happened to include.
     """
     df = df.copy()
     for col in sparse_cols:
+        if col not in df.columns:
+            df[col] = float("nan")
         df[f"{col}_missing"] = df[col].isna().astype(int)
         df[col] = df[col].fillna(0.0)
     return df

@@ -9,7 +9,8 @@ import logging
 
 import pandas as pd
 
-from src.config import PROCESSED_DIR, RAW_DIR
+from src.config import PROCESSED_DIR
+from src.features.run_features import load_market_prices  # restricted to MODELING_MARKET_IDS
 from src.features.target import DEFAULT_THRESHOLD, HORIZONS, build_target_table
 from src.features.target_analysis import class_balance_grid, realized_volatility_by_asset
 from src.ingestion.store import round_trip_matches
@@ -17,11 +18,6 @@ from src.ingestion.validate import ValidationResult
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
-
-
-def load_market_prices() -> dict[str, pd.DataFrame]:
-    market_dir = RAW_DIR / "market_prices"
-    return {path.stem: pd.read_parquet(path) for path in sorted(market_dir.glob("*.parquet"))}
 
 
 def _validate_target_table(df: pd.DataFrame) -> ValidationResult:

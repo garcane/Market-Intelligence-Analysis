@@ -79,7 +79,16 @@ def build_all_features(market_prices: dict[str, pd.DataFrame],
         enriched = add_cross_sectional_features(features, market_return, ai_index_return, sector_series)
         enriched.insert(0, "market_id", market_id)
 
-        if sentiment_df is not None and news_df is not None and entity_id is not None:
+        if sentiment_df is not None and news_df is not None:
+            # Called even when entity_id is None (asset has no matched entity
+            # in the news universe, e.g. a crypto asset or one added to the
+            # universe without sentiment coverage) — build_sentiment_features
+            # already handles "no matching news" by returning NaN-filled
+            # columns (see its docstring), so this keeps the sentiment columns
+            # structurally present for every asset rather than silently
+            # omitting them, which would break any downstream code (like
+            # src/models/dataset.py's fixed feature whitelist) that assumes
+            # every asset's feature row has the same columns.
             sentiment_features = build_sentiment_features(entity_id, sentiment_df, news_df, enriched["date"])
             enriched = enriched.merge(sentiment_features, on="date", how="left")
 

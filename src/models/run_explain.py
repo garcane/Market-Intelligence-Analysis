@@ -43,6 +43,7 @@ def _plot_top_features(df: pd.DataFrame, value_col: str, title: str, path, top_n
 
 
 def main(horizon: int = PRIMARY_HORIZON) -> None:
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     ml_dataset_path = PROCESSED_DIR / "ml_dataset" / "ml_dataset.parquet"
     ml_dataset = pd.read_parquet(ml_dataset_path)
     prepared, _ = build_dataset_for_horizon(ml_dataset, horizon)

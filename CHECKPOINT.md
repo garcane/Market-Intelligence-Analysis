@@ -4,6 +4,67 @@ Running log of stage completions, per the target prompt's checkpoint system. New
 
 ---
 
+## Reproducibility Test (target spec §28)
+
+**Status:** COMPLETE
+
+**Completed:** Fresh directory + fresh venv reproduction (not a literal `git clone`, since this session's work isn't committed yet — documented as a recommended follow-up). Installed straight from `requirements.txt`, ran the full offline test suite before any data existed (137/137 passed with zero setup beyond pip install), then the full live pipeline chain, then the full suite again. `REPRODUCIBILITY.md`.
+
+**Notable — two real, honestly-reported findings, not hidden:**
+1. **Yahoo Finance rate-limited equity ingestion** after this session's heavy cumulative usage — expected external-service behavior, not a code defect. The retry/backoff logic worked exactly as designed and failed loudly rather than silently. Crucially, **crypto ingestion's Yahoo→CoinCodex fallback chain proved itself live** under this real failure condition (not just in unit tests), while surfacing a genuine gap: equities currently have no fallback provider. Already-ingested real data from earlier in the session was substituted to verify the rest of the chain, with the substitution fully disclosed.
+2. **A real bug**: `src/models/run_explain.py` was the one figure-producing script missing `FIGURES_DIR.mkdir(parents=True, exist_ok=True)`, silently relying on an earlier script (`run_eda.py`) having already created `outputs/figures/` — an undocumented ordering dependency invisible in the working directory (which had accumulated that directory from many earlier runs) but immediately exposed by a genuinely fresh environment. Fixed; re-verified with results matching `EXPLAINABILITY.md` exactly.
+
+**Tests Passed:** `pytest tests/` — 137/137 in the fresh environment, both before and after the live pipeline run. Result consistency confirmed against the working-directory's documented numbers (identical row/split counts, identical leaderboard ordering, metric values within ordinary floating-point/threading noise).
+
+**Files Changed:** `src/models/run_explain.py`, `REPRODUCIBILITY.md`.
+
+---
+
+## Testing (target spec §27)
+
+**Status:** COMPLETE
+
+**Completed:** `tests/test_pipeline.py` — a genuine end-to-end integration test (synthetic-but-realistic data through the real Stage 4→6→7→8→9 chain), the one thing the module-by-module unit test suite structurally couldn't cover. `TESTING.md` documents the full coverage audit against the spec's checklist.
+
+**Notable — this test earned its place by finding two real bugs on its first run:**
+1. `src/features/pipeline.py` produced feature rows *missing* sentiment columns entirely (not NaN) for any asset with no matched news entity, which crashed `src/models/dataset.py`'s imputer — latent in production only because all 6 modeling assets happen to have news coverage. Fixed by always calling `build_sentiment_features` (it already handled "no match" gracefully; the bug was skipping the call).
+2. Same failure mode for `sector_return`/`relative_sector_performance` when *no* asset in a batch has a sector match. Fixed by making `impute_sparse_features` create missing sparse columns as NaN before imputing, rather than assuming the upstream pipeline always produced them.
+3. A related, adjacent issue surfaced by re-running the live pipeline afterward (not a unit test): Stage 12's additive equity/benchmark ingestion into the same `data/raw/market_prices/` directory made `run_features.py` silently build features for 17 assets instead of 6, correctly tripping `run_split.py`'s strict merge validation. Fixed by introducing an explicit `MODELING_MARKET_IDS` constant that `run_features.py`/`run_target.py` now filter to, rather than implicitly processing "whatever's in the directory."
+
+**Tests Passed:** `pytest tests/` — 137/137. Full pipeline (features → target → split → models → explainability → plots) re-run live after the fixes; results identical to before (`MODELS.md`/`EXPLAINABILITY.md` numbers unchanged), confirming the fixes were pure robustness improvements, not behavior changes.
+
+**Files Changed:** `tests/test_pipeline.py`, `src/features/pipeline.py`, `src/models/dataset.py`, `src/features/target.py` (added `MODELING_MARKET_IDS`), `src/features/run_features.py`, `src/features/run_target.py`, `TESTING.md`.
+
+---
+
+## Stage 15 — Software Engineering
+
+**Status:** COMPLETE
+
+**Completed:** `SOFTWARE_ENGINEERING.md` documents the `src/` layout and the rationale for folding `preprocessing`/`evaluation`/`visualisation` into where they actually live rather than forcing empty top-level packages. Built and **executed** all six target-spec notebooks (`notebooks/01_data_exploration.ipynb` through `06_financial_analysis.ipynb`) — the item explicitly deferred from Stage 5 (confirmed with the user at the time, tracked in `CHECKPOINT.md` so it wasn't forgotten). Every notebook imports and calls tested `src/` functions rather than duplicating logic; none retrain models or re-run ingestion.
+
+**Tests Passed:** All 6 notebooks executed cleanly end-to-end via `jupyter nbconvert --execute` (which fails loudly on any cell error, so a clean write is direct proof of a successful run).
+
+**Notable finding:** the first version of `03_feature_engineering.ipynb`'s live leakage demonstration printed `False` — alarming, given the whole project's Rule 4 emphasis. Investigated immediately rather than dismissed: the cause was `NaN != NaN` always being `True` in pandas, so a plain `==` comparison flagged the RSI feature's structural warm-up NaNs as "different from themselves." The actual `tests/test_features.py` leakage test uses NaN-aware comparison and was correct all along — the bug was in the notebook's own ad-hoc demo code, not the pipeline. Fixed (switched to `Series.equals()`) and re-verified to print `True`.
+
+**Files Changed:** `SOFTWARE_ENGINEERING.md`, `notebooks/*.ipynb` (6 files).
+
+---
+
+## Stage 14 — Dashboard
+
+**Status:** COMPLETE
+
+**Completed:** `dashboard/data_loader.py` (every data-access function `@st.cache_data`-wrapped — no live fetching or training on page load) + `dashboard/app.py`, all 10 sections from the target spec's tree (Overview + 9 named children), with real working filters (asset/date range on Stock Performance, AI category/region on Company Explorer, sentiment model/label on Sentiment Intelligence, category selector on AI Supply Chain, event selector on AI Events). `DASHBOARD.md`.
+
+**Tests Passed:** `tests/test_dashboard.py` — 11 tests using Streamlit's `AppTest` framework to actually execute the app and simulate navigating to all 10 sections, asserting no uncaught exception on any of them (a plain HTTP health check alone wouldn't prove per-section correctness, since Streamlit reports app errors over a websocket, invisible to `curl`). Also manually verified interactively that changing the Stock Performance asset selector re-renders correctly with updated metrics.
+
+**Notable finding:** `use_container_width` (used in every table/image/chart call) is a Streamlit parameter whose stated removal date (2025-12-31) has already passed per the system clock — fixed to `width='stretch'` across the file rather than ship new code already past its own sunset date.
+
+**Files Changed:** `dashboard/{__init__,app,data_loader}.py`, `tests/test_dashboard.py`, `DASHBOARD.md`.
+
+---
+
 ## Stage 13 — Visualisation
 
 **Status:** COMPLETE
