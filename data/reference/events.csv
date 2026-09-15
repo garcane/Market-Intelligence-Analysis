@@ -1,0 +1,7 @@
+event_id,event_date,event_type,primary_market_id,title,description
+nvda_q2fy24_earnings,2023-08-23,earnings,NVDA,NVIDIA Q2 FY24 earnings beat,"Large beat and guidance raise driven by AI/datacenter GPU demand; widely covered as a catalyst for the 2023-2024 AI equity rally"
+nvda_q4fy24_earnings,2024-02-21,earnings,NVDA,NVIDIA Q4 FY24 earnings beat,"Second major consecutive beat, datacenter revenue guidance well above consensus"
+gpt4o_launch,2024-05-13,model_release,MSFT,GPT-4o launch (OpenAI),"OpenAI's flagship multimodal model release; MSFT used as the primary_market_id given its OpenAI partnership/Azure OpenAI exposure, since OpenAI itself has no public ticker"
+llama31_release,2024-07-23,model_release,META,Llama 3.1 release (Meta),"Meta's largest open-weight model family release to date at the time"
+deepseek_r1_release,2025-01-20,model_release,NVDA,DeepSeek R1 release,"DeepSeek released its R1 reasoning model; NVDA used as primary_market_id since the subsequent market reaction concentrated there"
+deepseek_shock,2025-01-27,market_reaction,NVDA,"""DeepSeek shock"" -- NVDA single-day drop","Market reaction to DeepSeek's models topping app-store charts and claims of much lower training cost; NVDA had one of the largest single-day market-cap losses on record at the time. Distinct event_id from the R1 release date itself since the market reaction lagged the release by about a week."

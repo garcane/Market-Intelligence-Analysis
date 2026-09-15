@@ -4,6 +4,103 @@ Running log of stage completions, per the target prompt's checkpoint system. New
 
 ---
 
+## Stage 13 — Visualisation
+
+**Status:** COMPLETE
+
+**Completed:** `src/models/run_model_plots.py` (ROC/PR curves, confusion matrices — the model charts Stage 9 hadn't produced), `src/analytics/run_sentiment_viz.py` (sentiment-over-time, sentiment-by-sector — the sentiment charts Stage 5 hadn't produced), `VISUALISATION.md` consolidating all 26 figures across every stage into one gallery indexed by analytical question, per category, per the target spec's structure.
+
+**Verified:** Full test suite green throughout (no new logic beyond plotting orchestration, verified by direct visual inspection of rendered figures — PR-curve AP scores and confusion-matrix cell counts both cross-checked against Stage 9's `model_report_h5d.json` numbers and matched exactly).
+
+**Known Issues:** No "sentiment by geography" chart — current news sample too sparse per-country for a meaningful breakdown; documented in `VISUALISATION.md` as deferred, not silently dropped.
+
+**Files Changed:** `src/models/run_model_plots.py`, `src/analytics/run_sentiment_viz.py`, `VISUALISATION.md`.
+
+---
+
+## Stage 12 — AI Equity Indices
+
+**Status:** COMPLETE
+
+**Completed:** Expanded ingestion to 8 more equities (AMD, AVGO, AMZN, ORCL, AAPL, GOOGL, META, MU — all already defined in Stage 1's `companies.csv`, just not yet ingested) plus 3 benchmarks (SPX, NASDAQ, SOXX via `src/analytics/fetch_benchmarks.py`) — additive only, doesn't touch the 6-asset ML pipeline. `src/analytics/indices.py` (equal-weighted index construction, Sharpe, beta, drawdown, rolling correlation) + `run_indices.py` + `INDICES.md`. Three thematic indices built from real Stage 1 category membership: AI Infrastructure (NVDA/AMD/AVGO/TSM/MU), AI Platform (MSFT/AMZN/GOOGL/META/AAPL/ORCL), AI Model Provider (MSFT/GOOGL/META — private labs correctly excluded, no public price series).
+
+**Tests Passed:** `pytest tests/` green throughout (12 new tests in `test_indices.py`). Live run: all 14 constituents + 5 benchmarks resolved, zero missing members.
+
+**Notable finding:** AI Infrastructure index's beta vs. the independent SOXX semiconductor ETF benchmark came out to 0.99 — an unplanned but strong internal-consistency check, since the index was built from Stage 1's category membership with no reference to SOXX at all.
+
+**Files Changed:** `src/analytics/{indices,run_indices,fetch_benchmarks}.py`, `tests/test_indices.py`, `INDICES.md`; ingested `data/raw/market_prices/{AMD,AVGO,AMZN,ORCL,AAPL,GOOGL,META,MU,SPX,NASDAQ,SOXX}.parquet`.
+
+---
+
+## Stage 11 — Event Study
+
+**Status:** COMPLETE
+
+**Completed:** `data/reference/events.csv` — 6 manually-curated, real, high-confidence events (not a fabricated or comprehensive catalog; documented rationale for exclusion of anything past this assistant's Jan 2026 knowledge cutoff). `src/analytics/event_study.py` (trading-day-position event windows — not naive calendar arithmetic, avoids the weekend-gap problem; abnormal return vs. SPX benchmark; CAAR aggregation) + `run_event_study.py` + `EVENT_STUDY.md`.
+
+**Tests Passed:** `pytest tests/` green (8 new tests in `test_event_study.py`, including explicit weekend-snapping behavior). Live run: 6/6 events resolved.
+
+**Notable finding — independent real-world verification:** NVIDIA's well-known ~16% single-day pop after Q4 FY24 earnings showed up at **T+1, not T0** (earnings reported after market close) — caught and documented as a real event-study nuance, not hidden. The "DeepSeek shock" event reproduced the widely-reported ~17% single-day NVDA decline almost exactly (measured: -17.0% raw / -15.5% abnormal). Both independently corroborate the curated event dates and the ingested data quality.
+
+**Known Issues:** Simple relative-return abnormal-return methodology (asset return − benchmark return), not a full market-model regression with estimated beta — documented as a deliberate scope simplification in `EVENT_STUDY.md`. A 6-event catalog demonstrates the methodology; it is not a statistically powered study.
+
+**Files Changed:** `data/reference/events.csv`, `src/analytics/{event_study,run_event_study}.py`, `tests/test_event_study.py`, `EVENT_STUDY.md`.
+
+---
+
+## Stage 10 — Feature Importance & Explainability
+
+**Status:** COMPLETE
+
+**Completed:** `src/models/explain.py` (tree importance, permutation importance — the one model-agnostic method shared across all 4 models, LR coefficients, SHAP) + `run_explain.py` + `EXPLAINABILITY.md`.
+
+**Tests Passed:** `pytest tests/` green (7 new tests in `test_explain.py`), including a synthetic-signal-recovery test proving the importance methods actually detect real signal, not arbitrary orderings. Live run against Stage 9's real trained models.
+
+**Notable finding:** `ai_index_return` and `momentum_10d` rank in the top-10 by permutation importance for **all four models** — a genuinely converging signal across different model architectures, not one model's idiosyncrasy. Built-in (gain-based) tree importance disagreed, over-weighting `rolling_vol_30d`/`rolling_vol_7d` — a known bias of gain-based importance toward continuous features, documented as the reason permutation importance (not built-in importance) was used for the cross-model comparison.
+
+**Known Issues:** SHAP not computed for HistGradientBoostingClassifier — unsupported by the installed `shap` version's `TreeExplainer`; documented, not silently skipped. Also `HistGradientBoostingClassifier.feature_importances_` doesn't exist at all (real sklearn limitation) — that model is covered by permutation importance only.
+
+**Files Changed:** `src/models/{explain,run_explain}.py`, `tests/test_explain.py`, `EXPLAINABILITY.md`.
+
+---
+
+## Stage 9 — Baseline Models
+
+**Status:** COMPLETE
+
+**Completed:** `src/models/{dataset,classifiers,baselines,evaluate,train_baselines}.py` + `MODELS.md`. Explicit feature whitelist (not blacklist — the merged ingestion architecture added provider-metadata columns like `asset_id`/`source` that a blacklist would have silently let leak in). Raw price/volume levels deliberately excluded (non-stationary, not scale-comparable across assets). Preprocessing (`StandardScaler`, `OneHotEncoder`) fit only on train, inside an sklearn `Pipeline`. All four required classifiers (Logistic Regression, Random Forest, XGBoost, HistGradientBoosting) plus majority-class and random naive baselines. Leaderboard criteria (PR-AUC primary; ROC-AUC/F1/Brier secondary) fixed in code before any model ran.
+
+**Tests Passed:** `pytest tests/` green (13 new tests in `test_models.py`). Live run on horizon=5d: 2,826 train / 981 validation rows.
+
+**Notable finding — overfitting caught and fixed:** first hyperparameter attempt showed train PR-AUC 0.88–0.98 vs. validation ~0.40 (gap up to 0.57) for the tree models — real overfitting (not leakage; validation itself wasn't inflated, so the automated suspicious-AUC check correctly didn't fire, but Rule 5 still required investigating it). One deliberate regularization pass (shallower trees, larger leaf sizes, added L2) cut the gap by more than half in every case with no loss in validation performance. Final leaderboard: XGBoost (PR-AUC 0.409) > Random Forest (0.408) ≈ HistGradientBoosting (0.400) > Logistic Regression (0.397) — all modestly beat the majority-class (0.353) and random (0.339) baselines; no model tripped the suspicious-AUC (≥0.90) threshold.
+
+**Files Changed:** `src/models/{__init__,dataset,classifiers,baselines,evaluate,train_baselines}.py`, `tests/test_models.py`, `MODELS.md`; trained model artifacts in `outputs/model_results/models/*.joblib`.
+
+---
+
+## Interim — Reconciling a merged-in ingestion architecture
+
+**Status:** COMPLETE (not a numbered stage — unplanned work discovered mid-session)
+
+While working, a merge landed from `origin/main` (remote `github.com/garcane/-Market-Intelligence-Analysis`) adding a provider-adapter ingestion architecture (`src/ingestion/{base,providers,orchestrator,standardize}.py`: retryable provider classes for Yahoo Finance/CoinCodex/Marketaux/Google News with fallback chains and a standardized `article_id`/`published_at` schema). It wraps my original `fetch_market_prices`/`fetch_headlines` functions rather than replacing them, but `validate.py` had been rewritten to the new schema without `run_ingestion.py`'s `ingest_news()` ever converting back to the `fact_news` schema (`news_id`/`timestamp`/`source_id`, per `DATA_MODEL.md` §3.2) that Stages 4–8 all depend on by column name — a real regression, breaking 3 tests.
+
+**Fixed (confirmed with the user: keep the new architecture, reconcile the schema seam):**
+- `run_ingestion.py::ingest_news()` now renames the provider layer's `article_id`/`published_at`/`publisher` back to `news_id`/`timestamp`/`source_id` immediately after fetching, before `match_entities`/`validate`/`store` — so the new provider architecture is purely an internal fetch-layer upgrade, invisible to everything downstream.
+- `validate.py::validate_news` reverted to require the `fact_news` schema it's actually being handed.
+- Found and fixed a **second, independent bug** while smoke-testing the reconciliation: `CoinCodexProvider` was silently failing for every crypto asset (`BTC-USD` passed in, but CoinCodex's API wants bare `BTC`) — always falling back to Yahoo. Fixed the symbol format. This then surfaced a **third issue**: CoinCodex, once actually reachable, returns incomplete history for the tracked crypto assets (131 two-day gaps over ~1,200 days, ~11% of days silently missing) — not caught by `validate_market_prices`, which doesn't check date-completeness gaps. Reordered `default_market_providers` to prefer Yahoo Finance (proven complete throughout Stages 3–8) even for crypto, keeping CoinCodex as fallback only, rather than trust a data source found to silently drop data.
+- Minor: fixed a `pd.Timestamp.utcnow()` deprecation warning in `standardize.py`.
+- Re-ran the full pipeline end to end (ingestion → sentiment → features → target → split) to regenerate every downstream artifact against the restored complete data, since an earlier smoke-test ingestion run had briefly overwritten `NVDA.parquet`/`BTC.parquet` with a 1-month slice.
+
+**Tests Passed:** `pytest tests/` — 83/83 (was 80/83 immediately after the merge).
+
+**Known Issues:**
+- `validate_market_prices` still has no date-completeness/gap check — the CoinCodex issue was caught by manual inspection, not automated validation. Worth adding a gap-check for 24/7-trading assets as future hardening, not done here (time-boxed to reconciling the schema break, not auditing every provider).
+- CoinCodex remains wired up as a fallback despite its incompleteness issue — acceptable as a last-resort fallback (better than zero data), but should not become primary again without first adding that gap check.
+
+**Files Changed:** `src/ingestion/{run_ingestion,validate,providers,orchestrator,standardize}.py`; regenerated `data/raw/market_prices/*.parquet`, `data/raw/news/news.parquet`, `data/raw/sentiment/fact_sentiment.parquet`, `data/processed/{features/features,targets/target_table,ml_dataset/ml_dataset}.parquet`.
+
+---
+
 ## Stage 8 — Temporal Train/Validation/Test Split
 
 **Status:** COMPLETE

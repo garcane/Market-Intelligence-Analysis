@@ -93,6 +93,13 @@ def ingest_news(max_results_per_query: int = 20, companies_limit: int | None = N
     import pandas as pd
     combined = pd.concat(all_frames, ignore_index=True)
     combined = combined.drop_duplicates(subset=["url"])
+    # Providers (src/ingestion/providers.py) return the standardized
+    # article_id/published_at/publisher schema; rename back to the fact_news
+    # schema (news_id/timestamp/source_id, DATA_MODEL.md 3.2) that
+    # match_entities and every downstream Stage 4-8 module actually expects.
+    combined = combined.rename(columns={
+        "article_id": "news_id", "published_at": "timestamp", "publisher": "source_id",
+    })
     combined = match_entities(combined)
 
     validation = validate_news(combined)

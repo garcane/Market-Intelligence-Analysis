@@ -62,15 +62,20 @@ def validate_market_prices(df: pd.DataFrame, market_id: str) -> ValidationResult
 
 
 def validate_news(df: pd.DataFrame) -> ValidationResult:
+    """Validates against the fact_news schema (DATA_MODEL.md 3.2): news_id,
+    timestamp, source_id, title, url. Provider adapters (src/ingestion/providers.py)
+    return a richer article_id/published_at/publisher schema internally —
+    run_ingestion.ingest_news() renames back to this schema before validating/
+    storing, since Stages 4-8 (sentiment, features, target, split) all key off
+    news_id/timestamp/matched_company_id, not the provider-facing column names.
+    """
     issues: list[str] = []
-    required = ["article_id", "published_at", "title", "url"]
+    required = ["timestamp", "source_id", "title", "url"]
     missing_cols = [c for c in required if c not in df.columns]
     if missing_cols:
         return ValidationResult("news", False, [f"missing required columns: {missing_cols}"], len(df))
     if len(df) == 0:
         return ValidationResult("news", False, ["zero rows returned"], 0)
-    if df["article_id"].isna().any():
-        issues.append(f"{int(df['article_id'].isna().sum())} null article_id(s)")
     if df["title"].isna().any() or (df["title"].astype(str).str.strip() == "").any():
         issues.append("row(s) with empty title")
     if df["url"].duplicated().any():

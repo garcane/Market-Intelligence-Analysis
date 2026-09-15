@@ -46,6 +46,10 @@ class CoinCodexProvider(MarketDataProvider):
         return df[["date", "close", "volume", "market_cap", "source_record_id"]]
 
     def fetch_prices(self, symbol: str, start: str, end: str) -> pd.DataFrame:
+        # CoinCodex's API expects a bare symbol (e.g. "BTC"); the universe
+        # passes Yahoo-style crypto symbols (e.g. "BTC-USD") since that's the
+        # convention yfinance needs — strip the suffix for this provider only.
+        symbol = symbol.removesuffix("-USD")
         parts = []
         current = pd.Timestamp(start)
         finish = pd.Timestamp(end)

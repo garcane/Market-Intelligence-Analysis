@@ -44,8 +44,14 @@ def fetch_news_with_fallback(providers: list[NewsDataProvider], query: str, max_
 
 
 def default_market_providers(asset_type: str | None = None) -> list[MarketDataProvider]:
+    # Yahoo Finance first even for crypto: observed to return complete, gap-free
+    # daily history for the tracked crypto universe, while CoinCodex was found
+    # to silently drop ~11% of days (131 two-day gaps over a ~1,200-day pull) —
+    # validate_market_prices doesn't currently check for date-completeness gaps
+    # in a 24/7-trading asset, so that regression wasn't caught by validation.
+    # CoinCodex stays wired up as a fallback, not the primary source.
     if asset_type == "crypto":
-        return [CoinCodexProvider(), YahooFinanceProvider()]
+        return [YahooFinanceProvider(), CoinCodexProvider()]
     return [YahooFinanceProvider()]
 
 

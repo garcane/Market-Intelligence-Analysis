@@ -25,7 +25,7 @@ def standardize_market(df: pd.DataFrame, *, asset_id: str, source: str, currency
     if "source_record_id" not in out.columns:
         out["source_record_id"] = [f"{asset_id}|{d}" for d in out["date"]]
     if "ingested_at" not in out.columns:
-        out["ingested_at"] = pd.Timestamp.utcnow().tz_localize(None)
+        out["ingested_at"] = pd.Timestamp.now("UTC").tz_localize(None)
     for col in ["open", "high", "low", "close", "adj_close", "volume", "market_cap"]:
         if col in out.columns:
             out[col] = pd.to_numeric(out[col], errors="coerce")
@@ -49,5 +49,5 @@ def standardize_news(df: pd.DataFrame, *, source: str = "unknown") -> pd.DataFra
         if col not in out.columns:
             out[col] = default
     if "ingested_at" not in out.columns:
-        out["ingested_at"] = pd.Timestamp.utcnow().tz_localize(None)
+        out["ingested_at"] = pd.Timestamp.now("UTC").tz_localize(None)
     return out[[c for c in NEWS_COLUMNS if c in out.columns]]
