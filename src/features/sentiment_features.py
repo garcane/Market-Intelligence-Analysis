@@ -13,6 +13,12 @@ from src.analytics.sentiment_stats import daily_sentiment
 SENTIMENT_LAG_DAYS = (1, 3, 5)
 ROLLING_SENTIMENT_WINDOW = 7
 
+SENTIMENT_FEATURE_COLUMNS = [
+    "sentiment_current", *[f"lag_sentiment_{lag}d" for lag in SENTIMENT_LAG_DAYS],
+    f"rolling_mean_sentiment_{ROLLING_SENTIMENT_WINDOW}d", "sentiment_volatility",
+    "positive_ratio", "negative_ratio", "news_volume",
+]
+
 
 def build_sentiment_features(entity_id: str, sentiment_df: pd.DataFrame, news_df: pd.DataFrame,
                               date_index: pd.Series, sentiment_model: str = "vader") -> pd.DataFrame:
@@ -50,8 +56,4 @@ def build_sentiment_features(entity_id: str, sentiment_df: pd.DataFrame, news_df
         result["sentiment_current"].rolling(window=ROLLING_SENTIMENT_WINDOW, min_periods=1).mean()
     )
 
-    return result[[
-        "date", "sentiment_current", *[f"lag_sentiment_{lag}d" for lag in SENTIMENT_LAG_DAYS],
-        f"rolling_mean_sentiment_{ROLLING_SENTIMENT_WINDOW}d", "sentiment_volatility",
-        "positive_ratio", "negative_ratio", "news_volume",
-    ]]
+    return result[["date", *SENTIMENT_FEATURE_COLUMNS]]

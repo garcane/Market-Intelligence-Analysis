@@ -162,13 +162,22 @@ class TestFullPipelineIntegration:
         sentiment_df = score_news(news_df)
 
         features = build_all_features(market_prices, sentiment_df, news_df)
-        # sector_return/relative_sector_performance were never added by any
-        # asset's frame -> genuinely absent from the concatenated table, the
-        # exact condition that used to crash.
-        assert "sector_return" not in features.columns
+        # No asset has a sector match. The columns used to be absent here; the
+        # producer now guarantees them as all-NaN float columns.
+        assert "sector_return" in features.columns
+        assert features["sector_return"].isna().all()
 
         imputed = impute_sparse_features(features, sparse_cols=SPARSE_FEATURES)
         for col in SPARSE_FEATURES:
             assert col in imputed.columns
             assert f"{col}_missing" in imputed.columns
             assert imputed[col].isna().sum() == 0  # fully imputed, no crash, no leftover NaN
+
+    def test_feature_schema_is_stable_without_any_sentiment_data(self):
+        from src.features.pipeline import SECTOR_FEATURE_COLUMNS
+        from src.features.sentiment_features import SENTIMENT_FEATURE_COLUMNS
+
+        features = build_all_features(_synthetic_market_prices(["FAKE_A"]), None, None)
+        for col in SENTIMENT_FEATURE_COLUMNS + SECTOR_FEATURE_COLUMNS:
+            assert col in features.columns, f"{col} missing from feature schema"
+            assert pd.api.types.is_float_dtype(features[col]), f"{col} is not float"

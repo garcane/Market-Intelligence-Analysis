@@ -21,13 +21,15 @@ from src.features.cross_sectional_features import (
     compute_sector_returns,
 )
 from src.features.market_features import build_market_features
-from src.features.sentiment_features import build_sentiment_features
+from src.features.sentiment_features import SENTIMENT_FEATURE_COLUMNS, build_sentiment_features
 from src.ingestion.universe import (
     build_market_universe,
     entity_to_market_map,
     load_companies,
     load_company_ai_categories,
 )
+
+SECTOR_FEATURE_COLUMNS = ["sector_return", "relative_sector_performance"]
 
 
 def build_sector_members(universe: pd.DataFrame) -> dict[str, list[str]]:
@@ -95,4 +97,14 @@ def build_all_features(market_prices: dict[str, pd.DataFrame],
         combined_frames.append(enriched)
 
     result = pd.concat(combined_frames, ignore_index=True)
+
+    # Guarantee a stable schema: sentiment and sector columns exist (as float
+    # NaN) even when no sentiment data was supplied or no asset in the batch
+    # has a sector match. Missing-value representation failed in six places
+    # this project (see FAILURE_LOG.md); consumers had been patched one by
+    # one, so the producer now owns the contract instead.
+    for col in SENTIMENT_FEATURE_COLUMNS + SECTOR_FEATURE_COLUMNS:
+        if col not in result.columns:
+            result[col] = float("nan")
+
     return result.sort_values(["market_id", "date"]).reset_index(drop=True)
