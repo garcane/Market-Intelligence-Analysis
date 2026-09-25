@@ -4,6 +4,28 @@ Running log of stage completions, per the target prompt's checkpoint system. New
 
 ---
 
+## §28 follow-up and §33–37: git-clone reproduction, failure log, git discipline, deliverable
+
+**Status:** COMPLETE
+
+**§35 Git discipline.** This session's remaining work was committed in logical, single-concern commits (perf, robustness, ablation, docs, fixes), none pushed. `origin/main` had one new commit, a README rewrite by the owner (garcane). It was rebased onto cleanly, and that README was kept as the base. Only verified corrections were applied on top: Finnhub/GDELT were listed as current providers but aren't implemented, the dashboard section list, SUI status, "macro" features, the test count, and the missing exact pipeline commands. The locally written README that it superseded is kept in `git stash` and a scratchpad backup.
+
+**§28 Literal `git clone` reproduction** (the follow-up recommended in the earlier entry). It found four real problems:
+1. **The earlier "rate limit" diagnosis was wrong.** Tested side by side on the same IP, yfinance 1.7.0 fetched fine while the pinned `yfinance==0.2.52` was rejected. A clean install could not ingest equities at all. Fixed with `yfinance>=1.7.0`.
+2. **`pywin32` was unconditional**, so installing would fail on macOS/Linux. Added a platform marker.
+3. **`.env.example` was missing from the repository**, and `NEWS_API_KEY`, which the docs told users to set, was never used by any provider. The file is restored and the dead variable removed.
+4. **An analytical claim didn't reproduce.** "Sentiment slightly hurts" (0.404 → 0.397) flipped sign in the clone (0.400 → 0.401), and both gaps are inside seed noise. Corrected to "no measurable effect" in `ABLATION_STUDY.md`, `ANALYSIS_REPORT.md` and the README.
+
+After the fixes, the clone ran the full README pipeline on live data with no substitution. 148/148 tests pass with zero data and again after the pipeline, and the dashboard returns HTTP 200.
+
+**§33 Failure-recovery.** `FAILURE_LOG.md` classifies all 30 failures found in the project. Missing-value representation recurred seven times, well past the three-occurrence rule. The architectural response, the feature producer now guaranteeing its own schema, came late, and the log says so.
+
+**§36 Deliverable.** The structure matches the spec's tree apart from the deviations documented in `SOFTWARE_ENGINEERING.md`. `.env.example` was the one missing required file and is now restored.
+
+**Files Changed:** `requirements.txt`, `.env.example`, `src/config.py`, `src/features/{pipeline,sentiment_features}.py`, `src/analytics/run_eda.py`, `tests/test_pipeline.py`, `README.md`, `REPRODUCIBILITY.md`, `ABLATION_STUDY.md`, `ANALYSIS_REPORT.md`, `FINAL_QA.md`, `FAILURE_LOG.md`, `outputs/reports/EDA_SUMMARY.md`.
+
+---
+
 ## Performance Review (§29), Robustness Testing (§19), Ablation Study (§20)
 
 **Status:** COMPLETE
@@ -14,7 +36,7 @@ Running log of stage completions, per the target prompt's checkpoint system. New
 
 **Robustness Testing:** Tested the Stage 9 XGBoost leaderboard winner across horizons, thresholds, seeds, and asset subgroups. Key finding: raw PR-AUC and PR-AUC-normalized-by-baseline-rate tell **opposite stories** across horizons/thresholds — the 5-day primary horizon is not the "best-performing" in relative terms (1-day has the highest lift over its own baseline, 1.69x). Also found XGBoost's 1st-place margin over Random Forest in `MODELS.md` (0.001 PR-AUC) is smaller than seed-to-seed training noise (std 0.0025) — reported honestly as not a confident result, without discarding the broader "tree ensembles beat Logistic Regression" finding, which does survive. No dramatic equity-vs-crypto subgroup failure found. `ROBUSTNESS.md`.
 
-**Ablation Study:** Answered the spec's central question directly: **sentiment features do not currently improve performance** — sentiment-only scores F1=0.000, and market+sentiment scores slightly *worse* than market-only (0.397 vs 0.404 PR-AUC). Explained why (≈1% sentiment coverage per `FEATURES.md`, not a pipeline defect) rather than left as an unexplained negative result. `ABLATION_STUDY.md`.
+**Ablation Study:** Answered the spec's central question directly: **sentiment features do not currently improve performance** — sentiment-only scores F1=0.000, and market+sentiment scores slightly *worse* than market-only [later corrected: the git-clone reproduction flipped the sign of this gap, so it is noise, not a real effect; see the §28 follow-up entry] (0.397 vs 0.404 PR-AUC). Explained why (≈1% sentiment coverage per `FEATURES.md`, not a pipeline defect) rather than left as an unexplained negative result. `ABLATION_STUDY.md`.
 
 **Tests Passed:** `pytest tests/` — 147/147 (10 new tests: `test_robustness.py`, `test_ablation.py`).
 

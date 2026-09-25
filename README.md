@@ -201,7 +201,7 @@ Two follow-up analyses qualify the table above:
 
 - **The top-two ranking is not confident.** Across five random seeds, XGBoost's PR-AUC has a standard deviation of 0.0025, larger than its 0.001 lead over Random Forest. The broader result, that tree ensembles modestly beat Logistic Regression and the baselines, does hold. See [`ROBUSTNESS.md`](ROBUSTNESS.md).
 - **Raw PR-AUC misleads across configurations.** It rises with horizon and falls with threshold mostly because the base rate changes. Normalized by base rate, the 1-day horizon shows the highest lift (1.69x), not the 5-day primary horizon.
-- **Sentiment does not currently improve prediction.** Market + sentiment scores slightly below market-only (0.397 vs 0.404 PR-AUC), and sentiment alone never predicts a positive. The likely cause is coverage: sentiment exists for well under 1% of rows because the key-free news source has no historical archive. See [`ABLATION_STUDY.md`](ABLATION_STUDY.md).
+- **Sentiment has no measurable effect on prediction.** Market + sentiment versus market-only differs by -0.007 in one run and +0.001 in a fresh reproduction, which is inside seed noise. Sentiment alone never predicts a positive. The likely cause is coverage: sentiment exists for well under 1% of rows because the key-free news source has no historical archive. See [`ABLATION_STUDY.md`](ABLATION_STUDY.md).
 
 ---
 
@@ -243,6 +243,7 @@ Two follow-up analyses qualify the table above:
 ├── DASHBOARD.md                   # Dashboard documentation
 ├── EVENT_STUDY.md                 # Event-study methodology
 ├── EXPLAINABILITY.md              # Explainability methodology
+├── FAILURE_LOG.md                 # Every failure found, classified, with root cause
 ├── FEATURES.md                    # Feature engineering documentation
 ├── FINAL_QA.md                    # Final QA audit and Definition of Done
 ├── INDICES.md                     # AI thematic index methodology
@@ -308,7 +309,7 @@ The test and analytical layers are designed to run independently of live API acc
 pytest tests/
 ```
 
-The latest clean-environment reproduction run passed **137/137 tests** before and after the full pipeline execution.
+A literal `git clone` reproduction passed **148/148 tests**, both with zero data present and after running the full pipeline on freshly ingested live data.
 
 ### 6. Run the analytical pipeline
 
@@ -380,7 +381,7 @@ Reproducibility is a core design requirement. The project explicitly addresses c
 - **Schema validation:** market and news data are validated before entering downstream stages.
 - **Automated testing:** unit and integration tests cover the analytical pipeline.
 
-The current test suite contains **147 automated tests**, including an end-to-end integration test covering the real sentiment → feature → target → split → model chain.
+The current test suite contains **148 automated tests**, including an end-to-end integration test covering the real sentiment → feature → target → split → model chain.
 
 See [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md) and [`TESTING.md`](TESTING.md) for the full verification record.
 
@@ -410,6 +411,7 @@ The README is intentionally an entry point. Detailed methodology is maintained i
 | [`PERFORMANCE_REVIEW.md`](PERFORMANCE_REVIEW.md) | Pipeline profiling and optimisation |
 | [`ANALYSIS_REPORT.md`](ANALYSIS_REPORT.md) | Full analytical report: findings, limitations, conclusions |
 | [`FINAL_QA.md`](FINAL_QA.md) | Final QA audit and Definition of Done checklist |
+| [`FAILURE_LOG.md`](FAILURE_LOG.md) | Every failure found during the build, classified, with root cause and fix |
 | [`PROJECT_AUDIT.md`](PROJECT_AUDIT.md) | Audit of the original repository |
 | `API Reference Documents/` | External data-source and API architecture |
 | [`CHECKPOINT.md`](CHECKPOINT.md) | Development history and stage completion log |
