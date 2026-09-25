@@ -4,6 +4,24 @@ Running log of stage completions, per the target prompt's checkpoint system. New
 
 ---
 
+## Performance Review (§29), Robustness Testing (§19), Ablation Study (§20)
+
+**Status:** COMPLETE
+
+**Gap acknowledged:** Robustness Testing and Ablation Study were unlabeled sections between Stage 9 and Stage 10 in the target spec, deferred when Stages 9-13 were originally built and never clearly flagged as skipped at the time — a real omission, caught only while preparing final documentation and confirmed against the Definition of Done checklist (§37), which lists both as explicit required items. Built properly rather than left as a gap the README/analysis report would otherwise misrepresent.
+
+**Performance Review:** Profiled every `run_*.py` orchestrator; `src.models.run_explain` was a 51-70s outlier. Found and fixed two real inefficiencies: (1) `permutation_importance(n_jobs=-1)` spent 57s spawning multiprocessing pools for a sub-second computation; (2) `RandomForestClassifier(n_jobs=-1)`'s own pool got re-spawned on every one of ~217 repeated `predict_proba` calls inside the permutation loop. Removed unnecessary `n_jobs=-1` from both call sites — cut runtime to 36.5s with results provably unchanged. `PERFORMANCE_REVIEW.md`.
+
+**Robustness Testing:** Tested the Stage 9 XGBoost leaderboard winner across horizons, thresholds, seeds, and asset subgroups. Key finding: raw PR-AUC and PR-AUC-normalized-by-baseline-rate tell **opposite stories** across horizons/thresholds — the 5-day primary horizon is not the "best-performing" in relative terms (1-day has the highest lift over its own baseline, 1.69x). Also found XGBoost's 1st-place margin over Random Forest in `MODELS.md` (0.001 PR-AUC) is smaller than seed-to-seed training noise (std 0.0025) — reported honestly as not a confident result, without discarding the broader "tree ensembles beat Logistic Regression" finding, which does survive. No dramatic equity-vs-crypto subgroup failure found. `ROBUSTNESS.md`.
+
+**Ablation Study:** Answered the spec's central question directly: **sentiment features do not currently improve performance** — sentiment-only scores F1=0.000, and market+sentiment scores slightly *worse* than market-only (0.397 vs 0.404 PR-AUC). Explained why (≈1% sentiment coverage per `FEATURES.md`, not a pipeline defect) rather than left as an unexplained negative result. `ABLATION_STUDY.md`.
+
+**Tests Passed:** `pytest tests/` — 147/147 (10 new tests: `test_robustness.py`, `test_ablation.py`).
+
+**Files Changed:** `src/models/{robustness,run_robustness,ablation,run_ablation,explain,classifiers}.py`, `tests/{test_robustness,test_ablation}.py`, `PERFORMANCE_REVIEW.md`, `ROBUSTNESS.md`, `ABLATION_STUDY.md`.
+
+---
+
 ## Reproducibility Test (target spec §28)
 
 **Status:** COMPLETE
