@@ -32,7 +32,7 @@ Market & News APIs
 ┌───────────────────────┐
 │ Feature Engineering   │
 │ technical · momentum  │
-│ volatility · macro ·  │
+│ volatility ·          │
 │ cross-sectional ·     │
 │ sentiment             │
 └───────────┬───────────┘
@@ -75,15 +75,16 @@ The analytical model uses explicit dimensions and grain-defined fact tables for 
 
 The ingestion layer uses provider adapters, validation, retries and fallback logic rather than depending on a single external service.
 
-Current architecture includes:
+Implemented providers (`src/ingestion/providers.py`):
 
-- **Yahoo Finance / yfinance** — primary equity market data
-- **CoinCodex** — cryptocurrency market data and crypto fallback
-- **Finnhub** — supplementary structured financial data
-- **Marketaux** — structured financial news
-- **Google News RSS** — supplementary news discovery
-- **GDELT** — broader global and macro news intelligence
-- Additional providers documented in `API Reference Documents/`
+- **Yahoo Finance / yfinance** — primary market data for equities *and* crypto
+- **CoinCodex** — crypto fallback only (found to drop ~11% of days when used as primary; see `CHECKPOINT.md`)
+- **Google News RSS** — key-free news; current headlines only, no historical archive
+- **Marketaux** — structured financial news, active only when `MARKETAUX_API_TOKEN` is set
+
+Researched but **not yet implemented** (see `API Reference Documents/`): Finnhub, GDELT and other candidate providers.
+
+Equities currently have no fallback provider — a Yahoo Finance rate limit blocks equity ingestion entirely (observed during the reproducibility test).
 
 Provider quotas, availability, licensing and API terms can change and should be verified before deployment.
 
@@ -103,7 +104,7 @@ The equity taxonomy covers areas including:
 
 Companies can have multiple AI-sector classifications through a many-to-many bridge rather than duplicated company records.
 
-The current crypto universe includes BTC, ETH, SOL, XRP, BNB, ADA, DOGE, TRX, LINK and AVAX. The legacy SUI dataset is retained as historical reference material rather than part of the current tracked universe.
+The current crypto universe includes BTC, ETH, SOL, XRP, BNB, ADA, DOGE, TRX, LINK and AVAX. SUI, the original project's asset, was deliberately removed from the tracked universe and its legacy CSVs deleted; they remain recoverable from git history.
 
 ### News sentiment
 
@@ -161,15 +162,15 @@ These can be compared with independent market benchmarks and other asset classes
 The Streamlit dashboard provides a unified interface for the project's analytical outputs, including:
 
 1. Overview
-2. Stock Performance
+2. AI Market Overview
 3. Company Explorer
-4. Sentiment Intelligence
-5. AI Supply Chain
+4. Stock Performance
+5. Sentiment Intelligence
 6. AI Events
 7. Model Performance
-8. Explainability
-9. Financial Analysis
-10. Data and system views
+8. Prediction Analysis (feature importance / SHAP)
+9. Risk Analytics
+10. AI Supply Chain
 
 Dashboard data access is cached. The dashboard consumes processed outputs rather than retraining models on page load.
 
@@ -193,6 +194,14 @@ The results are deliberately reported conservatively. The models provide a modes
 An initial tree-model configuration showed substantial train/validation overfitting. The models were subsequently regularised, reducing the train/validation gap while preserving validation performance.
 
 See [`MODELS.md`](MODELS.md) for the complete methodology, metrics and diagnostic results.
+
+### Robustness and ablation findings
+
+Two follow-up analyses qualify the table above:
+
+- **The top-two ranking is not confident.** Across five random seeds, XGBoost's PR-AUC has a standard deviation of 0.0025, larger than its 0.001 lead over Random Forest. The broader result, that tree ensembles modestly beat Logistic Regression and the baselines, does hold. See [`ROBUSTNESS.md`](ROBUSTNESS.md).
+- **Raw PR-AUC misleads across configurations.** It rises with horizon and falls with threshold mostly because the base rate changes. Normalized by base rate, the 1-day horizon shows the highest lift (1.69x), not the 5-day primary horizon.
+- **Sentiment does not currently improve prediction.** Market + sentiment scores slightly below market-only (0.397 vs 0.404 PR-AUC), and sentiment alone never predicts a positive. The likely cause is coverage: sentiment exists for well under 1% of rows because the key-free news source has no historical archive. See [`ABLATION_STUDY.md`](ABLATION_STUDY.md).
 
 ---
 
@@ -227,16 +236,23 @@ See [`MODELS.md`](MODELS.md) for the complete methodology, metrics and diagnosti
 │   ├── figures/                   # Generated analytical visualisations
 │   └── model_results/             # Model artefacts and reports
 │
+├── ABLATION_STUDY.md              # Does sentiment help? Feature-group ablation
+├── ANALYSIS_REPORT.md             # Full analytical report
 ├── CHECKPOINT.md                  # Development and stage-completion log
 ├── DATA_MODEL.md                  # Analytical star-schema design
 ├── DASHBOARD.md                   # Dashboard documentation
 ├── EVENT_STUDY.md                 # Event-study methodology
 ├── EXPLAINABILITY.md              # Explainability methodology
 ├── FEATURES.md                    # Feature engineering documentation
+├── FINAL_QA.md                    # Final QA audit and Definition of Done
 ├── INDICES.md                     # AI thematic index methodology
 ├── MODELS.md                      # Model training and evaluation
+├── PERFORMANCE_REVIEW.md          # Pipeline profiling and optimisation
+├── PROJECT_AUDIT.md               # Audit of the original repository
 ├── REPRODUCIBILITY.md             # Clean-environment reproduction test
+├── ROBUSTNESS.md                  # Horizon/threshold/seed/asset-group robustness
 ├── SOFTWARE_ENGINEERING.md        # Architecture and engineering decisions
+├── SPLIT.md                       # Temporal split and embargo design
 ├── TESTING.md                     # Testing strategy and coverage
 ├── TARGET.md                      # Target-definition methodology
 ├── UNIVERSE.md                    # AI company and crypto universe
@@ -318,6 +334,29 @@ Indices / Event Study / Visualisations
 Dashboard
 ```
 
+Exact commands, in order (each stage reads the previous stage's output from `data/`):
+
+```bash
+python -m src.ingestion.run_ingestion --assets NVDA,MSFT,TSM,BTC,ETH,SOL --start 2023-06-01
+python -m src.sentiment.run_sentiment
+python -m src.features.run_features
+python -m src.features.run_target
+python -m src.models.run_split
+python -m src.models.train_baselines
+python -m src.models.run_explain
+python -m src.models.run_robustness
+python -m src.models.run_ablation
+python -m src.models.run_model_plots
+python -m src.analytics.run_eda
+python -m src.analytics.fetch_benchmarks
+python -m src.ingestion.run_ingestion --assets AMD,AVGO,AMZN,ORCL,AAPL,GOOGL,META,MU --start 2023-06-01 --skip-news
+python -m src.analytics.run_indices
+python -m src.analytics.run_event_study
+python -m src.analytics.run_sentiment_viz
+```
+
+The second ingestion call adds the equities used only by the thematic indices; they are kept out of the six-asset modelling universe (`MODELING_MARKET_IDS` in `src/features/target.py`).
+
 ### 7. Launch the dashboard
 
 ```bash
@@ -341,7 +380,7 @@ Reproducibility is a core design requirement. The project explicitly addresses c
 - **Schema validation:** market and news data are validated before entering downstream stages.
 - **Automated testing:** unit and integration tests cover the analytical pipeline.
 
-The current test suite contains **137 automated tests**, including an end-to-end integration test covering the real feature → target → split → model → explainability chain.
+The current test suite contains **147 automated tests**, including an end-to-end integration test covering the real sentiment → feature → target → split → model chain.
 
 See [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md) and [`TESTING.md`](TESTING.md) for the full verification record.
 
@@ -359,6 +398,8 @@ The README is intentionally an entry point. Detailed methodology is maintained i
 | [`TARGET.md`](TARGET.md) | Directional target definition |
 | [`SPLIT.md`](SPLIT.md) | Temporal validation design |
 | [`MODELS.md`](MODELS.md) | Model training, evaluation and results |
+| [`ROBUSTNESS.md`](ROBUSTNESS.md) | Robustness across horizons, thresholds, seeds and asset groups |
+| [`ABLATION_STUDY.md`](ABLATION_STUDY.md) | Feature-group ablation: does sentiment help? |
 | [`EXPLAINABILITY.md`](EXPLAINABILITY.md) | Feature importance and model interpretation |
 | [`EVENT_STUDY.md`](EVENT_STUDY.md) | Event-study methodology |
 | [`INDICES.md`](INDICES.md) | AI thematic index construction |
@@ -366,6 +407,10 @@ The README is intentionally an entry point. Detailed methodology is maintained i
 | [`VISUALISATION.md`](VISUALISATION.md) | Analytical visualisation catalogue |
 | [`TESTING.md`](TESTING.md) | Test strategy and coverage |
 | [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md) | Fresh-environment reproduction results |
+| [`PERFORMANCE_REVIEW.md`](PERFORMANCE_REVIEW.md) | Pipeline profiling and optimisation |
+| [`ANALYSIS_REPORT.md`](ANALYSIS_REPORT.md) | Full analytical report: findings, limitations, conclusions |
+| [`FINAL_QA.md`](FINAL_QA.md) | Final QA audit and Definition of Done checklist |
+| [`PROJECT_AUDIT.md`](PROJECT_AUDIT.md) | Audit of the original repository |
 | `API Reference Documents/` | External data-source and API architecture |
 | [`CHECKPOINT.md`](CHECKPOINT.md) | Development history and stage completion log |
 
