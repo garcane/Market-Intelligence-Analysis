@@ -1,56 +1,77 @@
-# REPRODUCIBILITY.md — Clean-Environment Reproduction Test (target spec §28)
+# REPRODUCIBILITY.md — Clean-Environment Reproduction (target spec §28)
 
-## Methodology: Fresh Directory + Fresh venv, Not a Literal `git clone`
+The spec's sequence is `git clone → install dependencies → configure environment → run pipeline → generate outputs`. It was run twice:
 
-The spec's §28 sequence is `git clone → install dependencies → configure environment → run pipeline → generate outputs`. At the time this test was run, this session's work was **not yet committed to git** (the user had not asked for a commit), so a literal `git clone` would have reproduced only the pre-session repository state, not what was actually being verified. Instead: the working tree was copied to a fresh directory (excluding `.venv/`, `.git/`, `data/raw/`, `data/processed/`, `outputs/`, and — deliberately — `.env`, to accurately simulate what a real clone would have, since `.env` is gitignored and never committed), a brand-new virtual environment was created there, and every dependency installed fresh from `requirements.txt`. This tests everything §28 actually cares about (does the code work from nothing but the repo + a package installer) without the process being blocked on whether a commit had happened yet. **Recommendation:** re-run this as a literal `git clone`-based test once the work is committed and pushed, as a final confirmation — the mechanism here should be identical.
+1. **Fresh-directory test** (earlier): the working tree copied to a new directory with a new venv, because the session's work was not yet committed.
+2. **Literal `git clone` test** (final): once everything was committed, the repository was cloned into an empty directory and the README's instructions were followed exactly.
 
-## Results
+The second run is the one that counts. It also overturned a diagnosis made during the first.
+
+## Final Run: Literal `git clone` (commit `cd7a4f5` + dependency fixes)
 
 | Step | Result |
 |---|---|
-| Fresh venv + `pip install -r requirements.txt` | ✅ Clean install, no errors |
-| Core dependency import check (pandas, sklearn, xgboost, streamlit, shap, yfinance, vaderSentiment, textblob, truststore, etc.) | ✅ All import successfully |
-| `pytest tests/` **before any data ingestion** | ✅ 137/137 passed — the entire offline unit/integration test suite requires zero setup beyond the pip install |
-| Live ingestion (`src.ingestion.run_ingestion`) | ⚠️ Partial — see below |
-| Sentiment → Features → Target → Split → Models → Explainability → Indices → Event Study → Visualizations | ✅ All ran cleanly end-to-end, after one real bug was found and fixed (see below) |
-| `pytest tests/` **after** full pipeline run | ✅ 137/137 passed |
-| Dashboard boot (`streamlit run dashboard/app.py --server.headless true`) | ✅ `HTTP 200`, `/_stcore/health` → `ok` |
+| `git clone` into an empty directory | Only `data/reference/` present; no `data/raw/`, no `.env` (correct: both are untracked) |
+| `python -m venv` + `pip install -r requirements.txt` | Clean install |
+| `pytest tests/` **with zero data present** | 148/148 passed |
+| `cp .env.example .env` (README step 4) | `.env.example` present in the clone. It was missing from the repository until this stage (see Finding 3) |
+| Ingestion, 6 modelling assets | 6/6 via Yahoo Finance, after the yfinance fix below (Finding 1) |
+| Every remaining README pipeline command, in order | All 16 ran successfully on freshly ingested live data, with no substitution |
+| `pytest tests/` after the full pipeline | 148/148 passed |
+| `streamlit run dashboard/app.py` | HTTP 200, `/_stcore/health` → `ok` |
 
-## Finding 1: Yahoo Finance Rate-Limited Equity Ingestion (external dependency, not a code defect)
+### Results reproduced
 
-Live ingestion of NVDA/MSFT/TSM failed with `YFRateLimitError` — this machine's IP had made a very large number of Yahoo Finance requests earlier in the same session (repeated ingestion runs across Stages 3–13), and Yahoo temporarily rate-limited it. **This is expected, correctly-handled behavior, not a pipeline bug:**
+| Result | Working environment | Git-clone reproduction |
+|---|---|---|
+| Stage 9 leaderboard order | XGBoost > RF > HGB > LR | XGBoost > RF > HGB > LR |
+| XGBoost PR-AUC across 5 seeds | mean 0.410, std 0.0025 | mean 0.410, std 0.0039 |
+| Equity / crypto PR-AUC | 0.411 / 0.420 | 0.414 / 0.419 |
+| DeepSeek-shock NVDA T0 return | -16.97% | -16.97% |
+| Ablation: market-only vs. market+sentiment | 0.404 vs. 0.397 | 0.400 vs. 0.401 |
 
-- The retry/backoff logic (`src/ingestion/market_data.py`) retried 3 times with backoff exactly as designed, then failed loudly with a clear `FETCH_FAILED` status in `ingestion_report_market.json` — no silent partial data, no fabricated fallback values.
-- **Crypto ingestion succeeded via the fallback chain**: BTC/ETH/SOL all hit the same Yahoo rate limit first, then correctly fell back to CoinCodex and passed — direct, live proof that `src/ingestion/orchestrator.py`'s fallback mechanism works under real failure conditions, not just in the unit tests that mock it.
-- **Equities currently have no fallback provider** (`default_market_providers` returns only `YahooFinanceProvider()` for equities) — a genuine robustness gap surfaced by this test, worth addressing in future work (e.g. a second free equity data source), not something to silently route around here.
-- Equity ingestion for NVDA/MSFT/TSM was independently verified working correctly many times earlier in this same session (see `CHECKPOINT.md`'s Stage 3 entry and every subsequent stage's "live run" notes) — this is a transient external-service condition at the moment of this specific test, not evidence the ingestion code doesn't work.
-- To still verify the rest of the pipeline chain end-to-end in the fresh environment (the part actually under this codebase's control), the already-ingested real market/news/sentiment data from earlier in the session was copied into the clean directory in place of re-running the rate-limited fetch. This is a disclosed substitution, not a hidden one.
+The last row is Finding 2.
 
-## Finding 2 (real bug, fixed): `run_explain.py` Assumed `outputs/figures/` Already Existed
+## Finding 1 (correction): the equity "rate limit" was a stale dependency pin
 
-Running `python -m src.models.run_explain` in the fresh directory (before any figures had been generated by another script) crashed with `FileNotFoundError` — every other figure-producing script (`run_eda.py`, `run_indices.py`, `run_event_study.py`, `run_sentiment_viz.py`, `run_model_plots.py`) calls `FIGURES_DIR.mkdir(parents=True, exist_ok=True)` at the start of `main()`; `run_explain.py` was the one script missing that line, silently relying on an earlier script having already created the directory. This never surfaced in the original working directory because `run_eda.py` (Stage 5) had always been run before `run_explain.py` (Stage 10) there — an implicit, undocumented ordering dependency that a genuinely fresh environment immediately exposed. **Fixed**: added the missing `mkdir` call; re-ran successfully afterward with results matching `EXPLAINABILITY.md`'s documented cross-model-agreement finding (`ai_index_return`, `momentum_10d` still top-ranked).
+The fresh-directory run failed to ingest NVDA/MSFT/TSM with `YFRateLimitError`. At the time, this document attributed it to Yahoo rate-limiting this machine's IP after heavy use during the session. **That diagnosis was wrong.**
 
-This is exactly the value of an actual clean-environment test over trusting a working directory that's accumulated state over many runs — per Rule 3's explicit question, "does it work from a clean environment?"
+In the git-clone run the same error appeared again, so both environments were tested side by side, on the same machine, at the same moment:
 
-## Result Consistency
+| Environment | yfinance version | `yf.download("MSFT", ...)` |
+|---|---|---|
+| Working venv | 1.7.0 (unpinned install) | 13 rows |
+| Fresh install from `requirements.txt` | **0.2.52 (pinned)** | `YFRateLimitError`, 0 rows |
 
-Numbers from the fresh-environment run matched the working-directory numbers closely (identical row counts, identical split counts, identical leaderboard ordering; PR-AUC/ROC-AUC within floating-point/threading noise, e.g. XGBoost 0.410 vs. 0.409 — not a reproducibility failure, ordinary nondeterminism from parallelized tree-building across two different machine states):
+Same IP, opposite outcome, so the IP was not the cause. `requirements.txt` was inherited from the original repository's `pip freeze` and pinned `yfinance==0.2.52`, a version Yahoo now rejects. **A clean install from the repository could not ingest any equity data.** Crypto only worked because the fallback chain reached CoinCodex.
 
-```text
-Stage 6 features:  6,078 rows, 6 assets — identical
-Stage 7 targets:   positive rates identical to 4 decimal places
-Stage 8 split:     train/validation/test counts identical at every horizon
-Stage 9 leaderboard: XGBoost > Random Forest ≈ HistGradientBoosting > Logistic Regression — identical ordering
-Stage 10 explainability: ai_index_return / momentum_10d top cross-model-agreed features — identical
-```
+Fixed by requiring `yfinance>=1.7.0`. With that, the clone ingested all six assets from Yahoo. A related portability bug was fixed at the same time: `pywin32==308` was an unconditional requirement, but pywin32 exists only on Windows, so `pip install -r requirements.txt` would have failed outright on macOS or Linux. It now carries a `sys_platform == "win32"` marker.
+
+**Lesson recorded:** an error message is not a diagnosis. "Rate limited" was accepted at face value in the first run; comparing two environments side by side found the real cause in one step.
+
+## Finding 2: the reproduction overturned an analytical claim
+
+The ablation result "adding sentiment slightly *lowers* PR-AUC" (0.404 → 0.397) came from one run. In the reproduction the sign flipped (0.400 → 0.401). Both gaps are smaller than XGBoost's seed-to-seed standard deviation, so the effect is noise. `ABLATION_STUDY.md`, `ANALYSIS_REPORT.md` and the README now say "no measurable effect", with the correction noted.
+
+## Finding 3: `.env.example` was missing from the repository
+
+The README tells new users to configure credentials, but no `.env.example` was tracked in git, so a fresh clone had nothing to copy. It had been created earlier in the project and was lost at some point before ever being committed. It has been restored, and it now lists only the variables the code actually reads. Restoring it also exposed a dead variable: `NEWS_API_KEY` was read in `src/config.py` but never used by any provider, while several documents told readers to set it for historical news. It was removed, and the documents were corrected.
+
+## Earlier Run: Fresh Directory (superseded)
+
+For the record: the fresh-directory run passed 137/137 tests before and after the pipeline, and it found one real bug. `src/models/run_explain.py` was the only figure-producing script that didn't create `outputs/figures/`, so it crashed when run before the others. That is now fixed. The run substituted previously ingested data for the equity fetch it could not complete, which was disclosed at the time. Its explanation for that failure is corrected in Finding 1 above.
+
+## Remaining Caveats
+
+- `yfinance>=1.7.0` is a lower bound, not an exact pin: Yahoo breaks old yfinance releases over time, so an exact pin would eventually rot the same way 0.2.52 did. The tradeoff is that a future yfinance release could change behavior.
+- `requirements.txt` still carries unused packages from the original repository's `pip freeze` (e.g. `keras`, `keras-tuner`, `h5py`). They install cleanly but add weight; see `FAILURE_LOG.md`.
 
 ## Stage Completion Check (§28)
 
-- [x] Dependencies install cleanly from `requirements.txt` alone
-- [x] Full offline test suite passes with zero data present
-- [x] Pipeline runs end-to-end in a fresh environment (with one disclosed, documented substitution for a transient external rate limit)
-- [x] A real bug (undocumented directory-creation ordering dependency) was found and fixed, not hidden
-- [x] Dashboard boots and responds correctly in the fresh environment
-- [x] Results consistent with the working directory's documented numbers
+- [x] `git clone` → install → configure → run pipeline → generate outputs, followed exactly as the README describes
+- [x] Full test suite passes with zero data, and again after the full pipeline
+- [x] Live ingestion and every pipeline stage succeed with no data substitution
+- [x] Dashboard boots from the clone
+- [x] Headline results reproduce, and the one that didn't was corrected in the analysis documents
 
-**Reproducibility test status: COMPLETE**, with the git-clone-specific step recommended as a follow-up once this session's work is committed.
+**Reproducibility status: COMPLETE.**
