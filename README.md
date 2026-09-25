@@ -298,7 +298,7 @@ pip install -r requirements.txt
 
 ### 4. Configure API credentials
 
-Create a local `.env` file containing the credentials required by the providers you intend to use. Never commit API keys or other secrets.
+Optional. Copy `.env.example` to `.env` and fill in any keys you have; every variable is optional, and the pipeline runs end to end with none set. Never commit API keys or other secrets.
 
 The test and analytical layers are designed to run independently of live API access where possible.
 

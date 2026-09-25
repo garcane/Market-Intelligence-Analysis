@@ -62,6 +62,3 @@ def _ensure_curl_ca_bundle() -> None:
 
 
 _ensure_curl_ca_bundle()
-
-# Optional — if unset, news ingestion falls back to the key-free Google News RSS source.
-NEWS_API_KEY = os.getenv("NEWS_API_KEY")
