@@ -25,11 +25,18 @@ def build_models() -> dict[str, Pipeline]:
         # 0.88 vs validation 0.40 (a 0.48 gap) — clear overfitting on a
         # ~2,800-row training set, not the leakage pattern (validation itself
         # wasn't suspiciously high). See MODELS.md for the before/after.
+        # n_jobs left at its default (1), not -1: profiling (PERFORMANCE_REVIEW.md)
+        # found n_jobs=-1 here cost ~47s of joblib process-pool spawn/teardown
+        # overhead when this fitted model's predict_proba got called repeatedly
+        # in a loop (permutation importance calls it hundreds of times) — at
+        # this dataset size (~2,800 rows), training is already sub-second
+        # single-threaded, so there was no offsetting benefit, only overhead
+        # that got paid on every repeated inference call downstream.
         "random_forest": Pipeline([
             ("preprocessor", build_preprocessor()),
             ("model", RandomForestClassifier(
                 n_estimators=300, max_depth=4, min_samples_split=40, min_samples_leaf=30,
-                max_features="sqrt", random_state=RANDOM_STATE, n_jobs=-1,
+                max_features="sqrt", random_state=RANDOM_STATE,
             )),
         ]),
         # First pass: train PR-AUC 0.976 vs validation 0.406 (0.57 gap).
@@ -39,7 +46,7 @@ def build_models() -> dict[str, Pipeline]:
             ("model", XGBClassifier(
                 n_estimators=200, max_depth=2, learning_rate=0.03, subsample=0.7,
                 colsample_bytree=0.7, min_child_weight=20, reg_lambda=5.0,
-                eval_metric="logloss", random_state=RANDOM_STATE, n_jobs=-1,
+                eval_metric="logloss", random_state=RANDOM_STATE,
             )),
         ]),
         # First pass: train PR-AUC 0.957 vs validation 0.413 (0.54 gap).

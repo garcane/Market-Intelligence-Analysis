@@ -41,9 +41,17 @@ def compute_permutation_importance(pipeline, X_val: pd.DataFrame, y_val: np.ndar
     input column is shuffled. Works identically for every model type (unlike
     tree importances or LR coefficients, which are model-specific), so this
     is the fairest way to compare signal across all four models.
+
+    n_jobs=1 (not -1) is deliberate: profiling (see PERFORMANCE_REVIEW.md)
+    showed n_jobs=-1 here spent ~57s spawning a multiprocessing pool and
+    re-importing the full sklearn/pandas/numpy stack in each worker process,
+    to parallelize a computation over ~1,000 validation rows that completes
+    in a couple of seconds single-threaded — the process-spawn overhead
+    dwarfed the actual work by roughly 20x. Called 4 times (once per model),
+    so that overhead was paid on every call.
     """
     result = permutation_importance(pipeline, X_val, y_val, n_repeats=n_repeats,
-                                     random_state=random_state, scoring=scoring, n_jobs=-1)
+                                     random_state=random_state, scoring=scoring, n_jobs=1)
     return pd.DataFrame({
         "feature": X_val.columns,
         "importance_mean": result.importances_mean,
