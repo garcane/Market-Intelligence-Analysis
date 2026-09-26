@@ -2,7 +2,7 @@
 
 > An end-to-end financial market intelligence and machine-learning research platform for analysing market behaviour, AI-sector exposure, cryptocurrency markets, financial news and sentiment.
 
-This repository has evolved substantially from its original two-stock Bokeh dashboard. It is now a structured analytical platform with multi-source ingestion, a shared analytical data model, sentiment analysis, feature engineering, time-aware machine learning, explainability, event studies, thematic AI indices and an interactive Streamlit dashboard.
+This repository has evolved substantially from its original two-stock Bokeh dashboard. It is now a structured analytical platform with multi-source ingestion, a shared analytical data model, sentiment analysis, feature engineering, time-aware machine learning, explainability, event studies, thematic AI indices and a web app (React frontend, FastAPI backend).
 
 The project is intended as a **research and analytical system**, not an automated trading platform. Model outputs are probabilistic research signals and are not investment advice.
 
@@ -62,7 +62,7 @@ importance / coeffs   performance · correlation
       │                    │
       └──────────┬─────────┘
                  ▼
-        Streamlit Dashboard
+      Web app: FastAPI + React
 ```
 
 The analytical model uses explicit dimensions and grain-defined fact tables for companies, markets, dates, news, sentiment, events and model outputs.
@@ -163,22 +163,25 @@ The project constructs equal-weighted thematic indices from the AI company taxon
 
 These can be compared with independent market benchmarks and other asset classes.
 
-### Interactive dashboard
+### Web app
 
-The Streamlit dashboard provides a unified interface for the project's analytical outputs, including:
+A React frontend backed by a FastAPI service presents the project's outputs. It replaced the original Streamlit dashboard. It has these pages:
 
 1. Overview
-2. AI Market Overview
-3. Company Explorer
-4. Stock Performance
-5. Sentiment Intelligence
-6. AI Events
-7. Model Performance
-8. Prediction Analysis (feature importance / SHAP)
-9. Risk Analytics
-10. AI Supply Chain
+2. AI market (thematic indices)
+3. Stock performance
+4. Risk analytics
+5. Company explorer
+6. AI supply chain
+7. AI events
+8. Sentiment
+9. News feed
+10. Model performance
+11. Explainability (permutation importance, SHAP, coefficients)
+12. Predictions: the latest rows scored against the validation base rate
+13. Pipeline: re-run stages from the browser, local mode only
 
-Dashboard data access is cached. The dashboard consumes processed outputs rather than retraining models on page load.
+The API serves the pipeline's saved outputs. It caches each file until it changes, and it never trains a model on page load. A read-only `APP_MODE=public` build is Docker-ready. See [`WEB_APP.md`](WEB_APP.md).
 
 ---
 
@@ -222,9 +225,8 @@ Two follow-up analyses qualify the table above:
 │   ├── processed/                 # Standardised analytical datasets
 │   └── reference/                 # Companies, crypto assets, events and taxonomy
 │
-├── dashboard/
-│   ├── app.py                     # Streamlit application
-│   └── data_loader.py             # Cached dashboard data access
+├── api/                           # FastAPI backend: routers, cached data access
+├── web/                           # React + Vite + TypeScript frontend
 │
 ├── notebooks/                     # Exploratory and reporting notebooks
 │
@@ -246,7 +248,6 @@ Two follow-up analyses qualify the table above:
 ├── ANALYSIS_REPORT.md             # Full analytical report
 ├── CHECKPOINT.md                  # Development and stage-completion log
 ├── DATA_MODEL.md                  # Analytical star-schema design
-├── DASHBOARD.md                   # Dashboard documentation
 ├── EVENT_STUDY.md                 # Event-study methodology
 ├── EXPLAINABILITY.md              # Explainability methodology
 ├── FAILURE_LOG.md                 # Every failure found, classified, with root cause
@@ -263,7 +264,8 @@ Two follow-up analyses qualify the table above:
 ├── TESTING.md                     # Testing strategy and coverage
 ├── TARGET.md                      # Target-definition methodology
 ├── UNIVERSE.md                    # AI company and crypto universe
-└── VISUALISATION.md               # Visualisation catalogue
+├── VISUALISATION.md               # Visualisation catalogue
+└── WEB_APP.md                     # Web app architecture, modes and endpoints
 ```
 
 The original scripts and notebooks are retained under `Old Source Files/` as historical references. They are not the current production pipeline.
@@ -338,7 +340,7 @@ Explainability
    ↓
 Indices / Event Study / Visualisations
    ↓
-Dashboard
+Web app
 ```
 
 Exact commands, in order (each stage reads the previous stage's output from `data/`):
@@ -364,13 +366,14 @@ python -m src.analytics.run_sentiment_viz
 
 The second ingestion call adds the equities used only by the thematic indices; they are kept out of the six-asset modelling universe (`MODELING_MARKET_IDS` in `src/features/target.py`).
 
-### 7. Launch the dashboard
+### 7. Launch the web app
 
 ```bash
-streamlit run dashboard/app.py
+cd web && npm install && npm run build && cd ..   # once, and after frontend changes
+uvicorn api.main:app                              # http://127.0.0.1:8000
 ```
 
-The dashboard has been verified in a clean environment, including its Streamlit health endpoint.
+For development with hot reload, run `npm run dev` in `web/` alongside `uvicorn api.main:app --reload`. Public mode, Docker and the verification steps are in [`WEB_APP.md`](WEB_APP.md).
 
 ---
 
@@ -410,7 +413,7 @@ The README is intentionally an entry point. Detailed methodology is maintained i
 | [`EXPLAINABILITY.md`](EXPLAINABILITY.md) | Feature importance and model interpretation |
 | [`EVENT_STUDY.md`](EVENT_STUDY.md) | Event-study methodology |
 | [`INDICES.md`](INDICES.md) | AI thematic index construction |
-| [`DASHBOARD.md`](DASHBOARD.md) | Streamlit dashboard design |
+| [`WEB_APP.md`](WEB_APP.md) | Web app: architecture, modes, endpoints, verification |
 | [`VISUALISATION.md`](VISUALISATION.md) | Analytical visualisation catalogue |
 | [`TESTING.md`](TESTING.md) | Test strategy and coverage |
 | [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md) | Fresh-environment reproduction results |
@@ -428,7 +431,7 @@ The README is intentionally an entry point. Detailed methodology is maintained i
 
 **Status: Research platform / portfolio project — core pipeline implemented.**
 
-The major analytical stages are implemented and tested, including ingestion, sentiment, feature engineering, target construction, temporal splitting, baseline modelling, explainability, event studies, thematic indices, visualisation and the dashboard.
+The major analytical stages are implemented and tested, including ingestion, sentiment, feature engineering, target construction, temporal splitting, baseline modelling, explainability, event studies, thematic indices, visualisation and the web app.
 
 The architecture remains intentionally extensible. Future work can add provider redundancy, additional sentiment models, richer model families, expanded event datasets and further financial analytics without replacing the core pipeline.
 

@@ -1,0 +1,16 @@
+# Runtime dependencies for the web API (api/) only; the full pipeline uses
+# requirements.txt. Versions are pinned to the environment that trained the
+# saved models: scikit-learn and xgboost pickles must load with the same
+# versions they were written with.
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+pandas==3.0.5
+numpy==2.5.3
+pyarrow==25.0.1
+scipy==1.18.1
+scikit-learn==1.9.1
+xgboost==3.4.1
+joblib==1.6.0
+python-dotenv==1.2.3
+truststore==0.10.4
+requests==2.34.2

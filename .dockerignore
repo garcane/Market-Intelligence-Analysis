@@ -1,0 +1,18 @@
+# Allowlist: exclude everything, then add back what the image needs.
+*
+!Dockerfile
+!requirements-web.txt
+!api/
+!src/
+!web/
+web/node_modules/
+web/dist/
+!data/reference/
+!data/processed/
+!data/raw/market_prices/
+!data/raw/news/news.parquet
+!data/raw/sentiment/
+!outputs/figures/
+!outputs/model_results/models/
+**/__pycache__/
+**/.env

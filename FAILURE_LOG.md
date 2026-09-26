@@ -41,6 +41,10 @@ This log records every failure found in the project, including the ones in my ow
 | 31 | Providers | Data *(latent)* | Routine news ingestion overwrote `news.parquet`, which would have wiped any backfilled history | `ingest_news` wrote only the current batch | Shared `merge_news_frames`; verified live, 282 → 302 rows |
 | 32 | Providers | Code *(security)* | API tokens could appear in error messages and health reports | `requests` errors embed the full URL; Marketaux and Alpha Vantage only take the token as a URL parameter | `get_json` redacts tokens from every error; header auth where the provider supports it |
 | 33 | Providers | Code | yfinance failures reported only as "empty response" | yfinance logs the real cause and returns an empty frame | The cause is captured and included in `FetchError` (the gap behind #24's misdiagnosis) |
+| 34 | Providers | Code *(security)* | Alpha Vantage's daily-quota message included the API key, and it was copied into `news_backfill_report.json` and the backfill log | #32's redaction covered request URLs, not provider message bodies | Messages are redacted (the known key plus any "API key as ..." echo); local reports and logs scrubbed. Rotating the key is recommended as a precaution |
+| 35 | Providers | Code | That quota message was classified as `AccessDenied` rather than `QuotaExhausted` | It also mentions "premium plans", and the premium check ran first | Quota phrases are checked first; regression test uses the real message |
+| 36 | §12 Indices | Code | 30-day rolling correlation vs SPX was entirely NaN (0 of 1,202 points); `12_rolling_correlation_vs_spx.png` had been empty since Stage 12 | The returns frame has weekend rows (crypto trades daily) where equities are NaN, so no 30-row window was ever complete | Series aligned on shared days first (794 points); regression test. Found when the web app drew it as a live chart. Reported index metrics unchanged |
+| 37 | Web app | Environment | `requirements.txt` pins older versions (e.g. scikit-learn 1.6.1) than the environment that trained the saved models (1.9.1) | The original `pip freeze` was never refreshed | `requirements-web.txt` pins the real versions and was verified in a fresh virtualenv; `requirements.txt` still needs the same refresh |
 
 No **Leakage**-class failure reached a result. The one real leakage vector found (labels crossing a split boundary) was designed out by the Stage 8 embargo before any model was trained (`SPLIT.md`).
 
@@ -58,5 +62,9 @@ The honest assessment is that the architectural fix came later than the rule ask
 ## Open Items
 
 - No date-completeness check for 24/7 assets in `validate_market_prices` (row 12 was caught by manual inspection, not automation).
-- Equity fallbacks (Tiingo, then Alpha Vantage) and the historical news backfill are built and unit-tested, but **not yet verified live**: no API keys were configured when they were written. The baseline they need to improve on is measured: training-period news coverage is 0 of 3,696 asset-days (`data/processed/news_coverage.json`).
-- `requirements.txt` still carries unused legacy packages from the original `pip freeze` (e.g. `keras`, `keras-tuner`, `h5py`).
+- **Historical news backfill (live since 2026-09-26):** day 1 brought news to 69,583 articles. Coverage of trading days is 0% for train, 20% for validation and 56% for test. The ablation gate (25% of training days) depends on Alpha Vantage's 25 requests per day, about 10 daily runs. Tiingo's equity fallback is verified live (closes within 0.0036% of Yahoo across NVDA's 2024 split).
+- **Backfilled news needs cleaning before sentiment is rebuilt from it.**
+  - Finnhub `company-news` returns general market stories under a ticker ("Should You Buy Nike Stock" tagged NVDA), and the backfill attributes every article to the queried symbol.
+  - The same story from two providers survives deduplication because the URLs differ.
+  - Scoring sentiment on this as-is would add noise to exactly the features the ablation tests.
+- `requirements.txt` still carries unused legacy packages from the original `pip freeze` (e.g. `keras`, `keras-tuner`, `h5py`), and pins older versions than the models were trained with (#37).

@@ -20,6 +20,8 @@ The second run is the one that counts. It also overturned a diagnosis made durin
 | `pytest tests/` after the full pipeline | 148/148 passed |
 | `streamlit run dashboard/app.py` | HTTP 200, `/_stcore/health` → `ok` |
 
+> **2026-09-26:** the Streamlit dashboard has been replaced by the FastAPI + React web app ([`WEB_APP.md`](WEB_APP.md)), so the row above is historical. The web app has been verified in the working environment, and its API dependencies (`requirements-web.txt`) in a fresh virtualenv. A full `git clone` reproduction of the web app has **not** been run yet.
+
 ### Results reproduced
 
 | Result | Working environment | Git-clone reproduction |

@@ -4,6 +4,51 @@ Running log of stage completions, per the target prompt's checkpoint system. New
 
 ---
 
+## Keyed providers, historical news backfill, and the web app (2026-09-26)
+
+**Status:** Web app COMPLETE. News backfill RUNNING (resumes daily).
+
+**Keyed providers.** Marketaux, Tiingo, Finnhub and Alpha Vantage are integrated behind the existing provider pattern. Each is key-gated, so a key-free run behaves exactly as before. A probe (`python -m src.ingestion.probe_providers`) checked each free tier before anything was wired in:
+
+- **Tiingo** is the equity fallback. It is split-adjusted, and its closes match Yahoo to within 0.0036% across NVDA's 2024 split. It was verified live with Yahoo removed from the chain.
+- **Alpha Vantage prices** are premium-only for full history, so they are not in the fallback chain.
+- **Finnhub candles** are premium-only.
+
+**Historical news backfill** (`python -m src.ingestion.run_news_backfill`). It works newest-first, caches every raw response so it can resume, and tracks per-provider daily quotas.
+
+- Day 1 took news from 1,815 to 69,583 articles.
+- Trading-day coverage is now 0% for train, 20% for validation and 56% for test.
+- Pre-June-2025 news comes almost entirely from Alpha Vantage (25 requests per day). The 25% training-coverage gate for re-running the ablation is therefore about 10 daily runs away.
+- Two data-quality problems must be fixed before sentiment is rebuilt from this news (FAILURE_LOG open items):
+  - Finnhub attributes general market stories to the queried ticker.
+  - Duplicates from different providers survive URL deduplication.
+
+**Web app** (replaces the Stage 14 Streamlit dashboard; see `WEB_APP.md`).
+
+- The backend is FastAPI (`api/`) serving the pipeline's saved outputs, with each file cached until it changes.
+- The frontend is React, Vite and TypeScript (`web/`), with 13 pages: the original 10, plus a news feed, latest-row predictions and a local-only pipeline runner.
+- `APP_MODE=public` gives a read-only demo that drops pipeline endpoints and Tiingo-sourced rows. The Dockerfile is written, but untested because Docker is not installed here.
+- `predict_latest` scores only unlabeled rows; the test set is still never scored.
+
+**Found along the way** (FAILURE_LOG #34-37):
+
+- Alpha Vantage's quota message echoed the API key into a local report. It is now redacted and the files scrubbed.
+- That same message was misclassified as access-denied.
+- The rolling correlation vs SPX had been empty since Stage 12.
+- `requirements.txt` pins older versions than the saved models were trained with.
+
+**Verification:**
+
+- `pytest tests/`: 187 pass. That is the 11 Streamlit tests removed, plus 19 API tests and new provider and indices tests.
+- `npm run build` and lint are clean.
+- Every page was loaded at 1440 px and 375 px in headless Edge, with no console errors and no overflow.
+- A pipeline job was run end to end from the API.
+- `requirements-web.txt` was installed and served from a fresh virtualenv.
+
+**Not pushed.**
+
+---
+
 ## §28 follow-up and §33–37: git-clone reproduction, failure log, git discipline, deliverable
 
 **Status:** COMPLETE
