@@ -23,6 +23,12 @@ except ImportError:
 ROOT_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT_DIR / ".env")
 
+# Accept common alternative spellings of the key names; the canonical name wins.
+ENV_ALIASES = {"FINNHUB_API_TOKEN": "FINNHUB_API_KEY", "ALPHA_VANTAGE_TOKEN": "ALPHA_VANTAGE_API_KEY"}
+for _alias, _canonical in ENV_ALIASES.items():
+    if os.getenv(_alias) and not os.getenv(_canonical):
+        os.environ[_canonical] = os.environ[_alias]
+
 DATA_DIR = ROOT_DIR / "data"
 RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
