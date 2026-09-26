@@ -16,7 +16,9 @@ from src.ingestion.standardize import merge_news_frames, to_fact_news
 from src.ingestion.store import market_prices_path, news_path, round_trip_matches
 from src.ingestion.universe import build_market_universe, load_companies
 from src.ingestion.validate import validate_market_prices, validate_news
+from src.ingestion.news_backfill import collect_recent_news, ingested_market_symbols
 from src.ingestion.news_data import match_entities
+from src.ingestion.providers import YahooFinanceNewsProvider
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -67,7 +69,10 @@ def ingest_market_universe(start: str, end: str, market_ids: list[str] | None = 
 
 
 def ingest_news(max_results_per_query: int = 20, companies_limit: int | None = None,
-                providers: list[NewsDataProvider] | None = None) -> dict:
+                providers: list[NewsDataProvider] | None = None,
+                ticker_news: NewsDataProvider | None | bool = True) -> dict:
+    """Keyword news per company (Google News) plus the latest news for every
+    ingested ticker (Yahoo Finance). Pass ticker_news=False to skip the latter."""
     companies = load_companies()
     if companies_limit:
         companies = companies.head(companies_limit)
@@ -87,14 +92,25 @@ def ingest_news(max_results_per_query: int = 20, companies_limit: int | None = N
         if not df.empty:
             all_frames.append(df.assign(query=query))
 
-    if not all_frames:
+    import pandas as pd
+
+    fact_frames = []
+    if all_frames:
+        keyword = pd.concat(all_frames, ignore_index=True).drop_duplicates(subset=["url"])
+        fact_frames.append(match_entities(to_fact_news(keyword.drop(columns=["query"]))))
+    if ticker_news is not False:
+        provider = ticker_news if isinstance(ticker_news, NewsDataProvider) else YahooFinanceNewsProvider()
+        symbols, entity_by_market = ingested_market_symbols()
+        recent, report["ticker_news"] = collect_recent_news(provider, symbols, entity_by_market)
+        if not recent.empty:
+            fact_frames.append(recent)
+
+    if not fact_frames:
         report["status"] = "NO_DATA"
         return report
 
-    import pandas as pd
-    combined = pd.concat(all_frames, ignore_index=True)
-    combined = combined.drop_duplicates(subset=["url"])
-    combined = match_entities(to_fact_news(combined))
+    # ticker-attributed rows first: on a shared url they are the more precise match
+    combined = pd.concat(fact_frames[::-1], ignore_index=True).drop_duplicates(subset=["url"])
 
     validation = validate_news(combined)
     report["row_count"] = validation.row_count
@@ -108,7 +124,7 @@ def ingest_news(max_results_per_query: int = 20, companies_limit: int | None = N
     # would wipe on the next routine ingestion.
     path = news_path()
     existing = pd.read_parquet(path) if path.exists() else None
-    store_df = merge_news_frames(existing, combined.drop(columns=["query"]))
+    store_df = merge_news_frames(existing, combined)
     matches, rt_issues = round_trip_matches(store_df, path)
     if not matches:
         report["status"] = "ROUND_TRIP_FAILED"

@@ -1,8 +1,10 @@
-"""Historical news backfill: fetch uncached windows, merge them into
+"""Daily news collection: fetch uncached historical windows (Finnhub, Alpha
+Vantage), collect the latest ticker news from Yahoo Finance, merge both into
 data/raw/news/news.parquet, and report sentiment coverage by split period.
-Safe to run daily; it resumes where it stopped.
+Safe to run daily; the backfill resumes where it stopped, and Yahoo's
+latest-only feed accumulates into history.
 
-Run as: python -m src.ingestion.run_news_backfill [--max-requests N] [--merge-only]
+Run as: python -m src.ingestion.run_news_backfill [--max-requests N] [--merge-only] [--skip-recent]
 """
 from __future__ import annotations
 
@@ -14,8 +16,17 @@ import pandas as pd
 
 from src.config import PROCESSED_DIR, RAW_DIR
 from src.features.target import MODELING_MARKET_IDS
-from src.ingestion.news_backfill import CACHE_ROOT, DEFAULT_EARLIEST, coverage_report, merge_backfill, run_backfill
+from src.ingestion.news_backfill import (
+    CACHE_ROOT,
+    DEFAULT_EARLIEST,
+    collect_recent_news,
+    ingested_market_symbols,
+    coverage_report,
+    merge_backfill,
+    run_backfill,
+)
 from src.ingestion.orchestrator import default_historical_news_providers
+from src.ingestion.providers import YahooFinanceNewsProvider
 from src.ingestion.providers_health import write_health_report
 from src.ingestion.standardize import merge_news_frames
 from src.ingestion.store import news_path, round_trip_matches
@@ -43,7 +54,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--max-requests", type=int, default=None, help="cap on network calls this run")
     parser.add_argument("--earliest", default=DEFAULT_EARLIEST.isoformat())
-    parser.add_argument("--providers", default=None, help="comma-separated subset, e.g. finnhub,marketaux")
+    parser.add_argument("--providers", default=None, help="comma-separated subset, e.g. finnhub,alpha_vantage_news")
+    parser.add_argument("--skip-recent", action="store_true", help="don't collect latest ticker news from Yahoo Finance")
     parser.add_argument("--merge-only", action="store_true", help="re-parse the cache without fetching")
     args = parser.parse_args()
 
@@ -55,12 +67,20 @@ def main() -> None:
         if args.providers:
             wanted = set(args.providers.split(","))
             providers = [p for p in providers if p.name in wanted]
-        if not providers:
-            logger.warning("no historical news provider has a key set — see .env.example; merging cache only")
+        if not providers and args.providers:
+            logger.info("no historical provider selected by --providers %s; collecting recent news only", args.providers)
+        elif not providers:
+            logger.warning("no historical news provider has a key set (see .env.example); collecting recent news only")
         report["fetch"] = run_backfill(providers, markets, earliest=date.fromisoformat(args.earliest),
                                        max_requests=args.max_requests)
 
     backfill = merge_backfill(CACHE_ROOT, entity_by_market)
+    if not args.merge_only and not args.skip_recent:
+        symbols, recent_entities = ingested_market_symbols()
+        recent, report["recent"] = collect_recent_news(YahooFinanceNewsProvider(), symbols, recent_entities)
+        logger.info("yahoo_finance_news: %s", report["recent"])
+        if not recent.empty:
+            backfill = merge_news_frames(backfill, recent)
     path = news_path()
     existing = pd.read_parquet(path) if path.exists() else None
     before = 0 if existing is None else len(existing)
@@ -74,7 +94,7 @@ def main() -> None:
         matches, issues = round_trip_matches(merged, path)
         if not matches:
             raise ValueError(f"news round-trip failed: {issues}")
-    report["news_rows"] = {"before": before, "after": len(merged), "backfill_parsed": len(backfill)}
+    report["news_rows"] = {"before": before, "after": len(merged), "collected": len(backfill)}
 
     trading_dates = {}
     for market_id, _ in markets:

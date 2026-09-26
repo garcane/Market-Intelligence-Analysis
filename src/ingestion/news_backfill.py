@@ -1,6 +1,6 @@
 """Resumable historical news backfill.
 
-Free news quotas are small (Marketaux 100 requests/day, Alpha Vantage ~25),
+Free news quotas are small (Alpha Vantage ~25 requests/day),
 so the backfill runs a little each day, newest window first, and picks up
 where it stopped:
 
@@ -24,9 +24,10 @@ from typing import Any
 import pandas as pd
 
 from src.config import RAW_DIR
-from src.ingestion.base import AccessDenied, HistoricalNewsProvider, ProviderError, QuotaExhausted
-from src.ingestion.providers import AlphaVantageNewsProvider, FinnhubNewsProvider, MarketauxProvider
+from src.ingestion.base import AccessDenied, HistoricalNewsProvider, NewsDataProvider, ProviderError, QuotaExhausted
+from src.ingestion.providers import AlphaVantageNewsProvider, FinnhubNewsProvider
 from src.ingestion.standardize import to_fact_news
+from src.ingestion.universe import build_market_universe, entity_to_market_map
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ CACHE_ROOT = RAW_DIR / "news_backfill"
 DEFAULT_EARLIEST = date(2023, 6, 1)
 PARSERS: dict[str, Callable[[Any], pd.DataFrame]] = {
     cls.name: cls.parse_window
-    for cls in (FinnhubNewsProvider, AlphaVantageNewsProvider, MarketauxProvider)
+    for cls in (FinnhubNewsProvider, AlphaVantageNewsProvider)
 }
 
 
@@ -154,16 +155,46 @@ def merge_backfill(cache_root: Path, entity_by_market: dict[str, tuple[str, str]
         df = parser(record["raw"])
         if df.empty:
             continue
-        entity_id, asset_type = entity
-        df = to_fact_news(df)
-        df["entity"] = record["market_id"]
-        df["matched_company_id"] = entity_id if asset_type == "equity" else None
-        df["matched_asset_id"] = entity_id if asset_type == "crypto" else None
-        df["category"] = "general"
-        frames.append(df)
+        frames.append(attribute_to_market(to_fact_news(df), record["market_id"], entity))
     if not frames:
         return pd.DataFrame()
     return pd.concat(frames, ignore_index=True).drop_duplicates(subset=["url"], keep="first")
+
+
+def attribute_to_market(df: pd.DataFrame, market_id: str, entity: tuple[str, str]) -> pd.DataFrame:
+    """Tag fact_news rows with the market they were queried for."""
+    entity_id, asset_type = entity
+    df = df.copy()
+    df["entity"] = market_id
+    df["matched_company_id"] = entity_id if asset_type == "equity" else None
+    df["matched_asset_id"] = entity_id if asset_type == "crypto" else None
+    df["category"] = "general"
+    return df
+
+
+def collect_recent_news(provider: NewsDataProvider, symbols: dict[str, str],
+                        entity_by_market: dict[str, tuple[str, str]]) -> tuple[pd.DataFrame, dict]:
+    """Latest news per market from a provider without date-range queries
+    (yfinance). `symbols` maps market_id to the provider's symbol. A failed
+    market is reported and skipped; the others still count."""
+    frames, summary = [], {"markets": 0, "articles": 0, "failed": {}}
+    for market_id, symbol in symbols.items():
+        entity = entity_by_market.get(market_id)
+        if entity is None:
+            continue
+        try:
+            df = provider.fetch_news(symbol)
+        except ProviderError as exc:
+            summary["failed"][market_id] = str(exc)[:200]
+            continue
+        summary["markets"] += 1
+        if df.empty:
+            continue
+        summary["articles"] += len(df)
+        frames.append(attribute_to_market(to_fact_news(df), market_id, entity))
+    if not frames:
+        return pd.DataFrame(), summary
+    return pd.concat(frames, ignore_index=True).drop_duplicates(subset=["url"], keep="first"), summary
 
 
 def coverage_report(news_df: pd.DataFrame, trading_dates: dict[str, pd.Series],
@@ -202,3 +233,17 @@ def coverage_report(news_df: pd.DataFrame, trading_dates: dict[str, pd.Series],
         report["totals"][period] = {"days": n_days, "covered": n_covered,
                                     "pct": round(n_covered / n_days, 4) if n_days else None}
     return report
+
+
+def ingested_market_symbols() -> tuple[dict[str, str], dict[str, tuple[str, str]]]:
+    """Yahoo symbol and entity for every universe market with ingested prices,
+    so ticker news also covers the index-only equities, not just the six
+    modelling assets."""
+    universe = build_market_universe()
+    ingested = {p.stem for p in (RAW_DIR / "market_prices").glob("*.parquet")}
+    universe = universe[universe["market_id"].isin(ingested)]
+    market_to_entity = {m: e for e, m in entity_to_market_map().items()}
+    symbols = dict(zip(universe["market_id"], universe["symbol"]))
+    entity_by_market = {m: (market_to_entity[m], t) for m, t in zip(universe["market_id"], universe["asset_type"])
+                        if m in market_to_entity}
+    return symbols, entity_by_market

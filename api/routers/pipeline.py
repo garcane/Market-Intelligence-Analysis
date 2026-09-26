@@ -30,9 +30,9 @@ TAIL_LINES = 80
 
 JOBS: dict[str, dict] = {
     "ingest": {"module": "src.ingestion.run_ingestion", "label": "Ingest prices and news",
-               "description": "Refresh prices for the full universe and current news. Network-bound."},
+               "description": "Refresh prices for the full universe, plus current news (Google News, Yahoo Finance)."},
     "news_backfill": {"module": "src.ingestion.run_news_backfill", "label": "News backfill",
-                      "description": "Fetch older news windows within today's API quotas. Resumable."},
+                      "description": "Backfill older news (Finnhub, Alpha Vantage) within today's quotas and collect the latest Yahoo Finance ticker news. Run daily."},
     "sentiment": {"module": "src.sentiment.run_sentiment", "label": "Score sentiment",
                   "description": "Score every article with VADER and TextBlob."},
     "features": {"module": "src.features.run_features", "label": "Build features",

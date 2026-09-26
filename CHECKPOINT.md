@@ -8,7 +8,7 @@ Running log of stage completions, per the target prompt's checkpoint system. New
 
 **Status:** Web app COMPLETE. News backfill RUNNING (resumes daily).
 
-**Keyed providers.** Marketaux, Tiingo, Finnhub and Alpha Vantage are integrated behind the existing provider pattern. Each is key-gated, so a key-free run behaves exactly as before. A probe (`python -m src.ingestion.probe_providers`) checked each free tier before anything was wired in:
+**Keyed providers.** Tiingo, Finnhub and Alpha Vantage are integrated behind the existing provider pattern. Marketaux was integrated too, then replaced by keyless Yahoo Finance news: it gave 3 articles per request, against yfinance's 100. yfinance has no date-range query, so it collects the latest news daily instead of backfilling. Each is key-gated, so a key-free run behaves exactly as before. A probe (`python -m src.ingestion.probe_providers`) checked each free tier before anything was wired in:
 
 - **Tiingo** is the equity fallback. It is split-adjusted, and its closes match Yahoo to within 0.0036% across NVDA's 2024 split. It was verified live with Yahoo removed from the chain.
 - **Alpha Vantage prices** are premium-only for full history, so they are not in the fallback chain.

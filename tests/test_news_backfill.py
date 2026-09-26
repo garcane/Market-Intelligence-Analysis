@@ -6,7 +6,14 @@ import pandas as pd
 import pytest
 
 from src.ingestion.base import HistoricalNewsProvider, ProviderError, QuotaExhausted
-from src.ingestion.news_backfill import cache_path, coverage_report, merge_backfill, plan_windows, run_backfill
+from src.ingestion.news_backfill import (
+    cache_path,
+    collect_recent_news,
+    coverage_report,
+    merge_backfill,
+    plan_windows,
+    run_backfill,
+)
 from src.ingestion.standardize import merge_news_frames
 
 NO_SLEEP = {"sleep": lambda s: None}
@@ -161,3 +168,27 @@ def test_coverage_report_by_period_counts_exact_trading_days():
     assert m["validation"] == {"days": 1, "covered": 0, "pct": 0.0}
     assert m["test"] == {"days": 1, "covered": 1, "pct": 1.0}
     assert report["totals"]["train"]["pct"] == 0.5
+
+
+class FakeRecentProvider:
+    """Latest-news provider (no date windows); fails for one symbol."""
+    name = "yahoo_finance_news"
+
+    def fetch_news(self, query, max_results=None):
+        from src.ingestion.providers import YahooFinanceNewsProvider
+        if query == "SOL-USD":
+            raise ProviderError("yahoo_finance_news: SOL-USD: timeout")
+        item = {"content": {"id": f"{query}-1", "title": f"{query} story", "pubDate": "2026-09-26T10:00:00Z",
+                            "canonicalUrl": {"url": f"https://x/{query}"}, "provider": {"displayName": "Reuters"}}}
+        return YahooFinanceNewsProvider.parse_items([item, item], entity=query)
+
+
+def test_collect_recent_news_attributes_by_market_and_skips_failures():
+    entity_by_market = {"NVDA": ("nvidia", "equity"), "BTC": ("btc", "crypto"), "SOL": ("sol", "crypto")}
+    symbols = {"NVDA": "NVDA", "BTC": "BTC-USD", "SOL": "SOL-USD", "XYZ": "XYZ"}  # XYZ has no entity
+    df, summary = collect_recent_news(FakeRecentProvider(), symbols, entity_by_market)
+    assert summary["markets"] == 2 and set(summary["failed"]) == {"SOL"}
+    assert df["url"].is_unique and len(df) == 2
+    btc = df[df["entity"] == "BTC"].iloc[0]
+    assert btc["matched_asset_id"] == "btc" and btc["matched_company_id"] is None
+    assert {"news_id", "timestamp", "source_id"} <= set(df.columns)

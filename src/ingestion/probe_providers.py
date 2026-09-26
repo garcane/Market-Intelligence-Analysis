@@ -1,7 +1,7 @@
 """Probe what each keyed provider's plan actually allows, before relying on it.
 
-Makes a handful of small requests (about 5 of Alpha Vantage's ~25/day, ~7 of
-Marketaux's 100/day) and prints one row per capability. Tokens are never
+Makes a handful of small requests (about 5 of Alpha Vantage's ~25/day) and
+prints one row per capability. Tokens are never
 printed: provider errors are redacted in providers.get_json.
 
 Run as: python -m src.ingestion.probe_providers
@@ -22,8 +22,8 @@ from src.ingestion.providers import (
     AlphaVantageMarketProvider,
     AlphaVantageNewsProvider,
     FinnhubNewsProvider,
-    MarketauxProvider,
     TiingoProvider,
+    YahooFinanceNewsProvider,
     get_json,
 )
 from src.ingestion.providers_health import write_health_report
@@ -31,11 +31,10 @@ from src.ingestion.providers_health import write_health_report
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
 
 ALPHA_VANTAGE_SPACING_SECONDS = 13  # free tier also limits bursts
-MARKETAUX_CRYPTO_CANDIDATES = ["BTC", "BTCUSD", "BTC-USD", "CC:BTC"]
 
 
-def _run(capability: str, env_var: str, fn: Callable[[], str]) -> dict:
-    if not os.getenv(env_var):
+def _run(capability: str, env_var: str | None, fn: Callable[[], str]) -> dict:
+    if env_var and not os.getenv(env_var):
         return {"capability": capability, "status": "NO KEY", "detail": f"{env_var} not set"}
     try:
         return {"capability": capability, "status": "OK", "detail": fn()}
@@ -116,13 +115,10 @@ def main() -> None:
                          probe_news(finnhub, "NVDA", months, days=7)))
         time.sleep(finnhub.min_interval_seconds)
 
-    marketaux = MarketauxProvider()
-    for months in (1, 13, 24):
-        rows.append(_run(f"marketaux news, {months} months back", "MARKETAUX_API_TOKEN",
-                         probe_news(marketaux, "NVDA", months, days=7)))
-    for candidate in MARKETAUX_CRYPTO_CANDIDATES:
-        rows.append(_run(f"marketaux crypto symbol {candidate!r}", "MARKETAUX_API_TOKEN",
-                         probe_news(marketaux, candidate, 1, days=7)))
+    yahoo_news = YahooFinanceNewsProvider()
+    for symbol in ("NVDA", "BTC-USD"):
+        rows.append(_run(f"yahoo_finance news {symbol} (latest only, keyless)", None,
+                         lambda s=symbol: _count(yahoo_news.fetch_news(s))))
 
     av_news = AlphaVantageNewsProvider()
     for symbol, months in (("NVDA", 13), ("NVDA", 24), ("CRYPTO:BTC", 1)):

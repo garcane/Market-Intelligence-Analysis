@@ -64,7 +64,7 @@ The honest assessment is that the architectural fix came later than the rule ask
 - No date-completeness check for 24/7 assets in `validate_market_prices` (row 12 was caught by manual inspection, not automation).
 - **Historical news backfill (live since 2026-09-26):** day 1 brought news to 69,583 articles. Coverage of trading days is 0% for train, 20% for validation and 56% for test. The ablation gate (25% of training days) depends on Alpha Vantage's 25 requests per day, about 10 daily runs. Tiingo's equity fallback is verified live (closes within 0.0036% of Yahoo across NVDA's 2024 split).
 - **Backfilled news needs cleaning before sentiment is rebuilt from it.**
-  - Finnhub `company-news` returns general market stories under a ticker ("Should You Buy Nike Stock" tagged NVDA), and the backfill attributes every article to the queried symbol.
+  - Finnhub `company-news` and Yahoo Finance's ticker news both return general market stories under a ticker ("Should You Buy Nike Stock", a Costco story, both tagged NVDA). Articles are attributed to the queried symbol. Yahoo's response carries no per-article ticker list to filter on.
   - The same story from two providers survives deduplication because the URLs differ.
   - Scoring sentiment on this as-is would add noise to exactly the features the ablation tests.
 - `requirements.txt` still carries unused legacy packages from the original `pip freeze` (e.g. `keras`, `keras-tuner`, `h5py`), and pins older versions than the models were trained with (#37).

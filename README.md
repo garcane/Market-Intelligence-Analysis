@@ -79,16 +79,16 @@ Implemented providers (`src/ingestion/providers.py`):
 
 - **Yahoo Finance / yfinance** — primary market data for equities *and* crypto
 - **CoinCodex** — crypto fallback only (found to drop ~11% of days when used as primary; see `CHECKPOINT.md`)
-- **Google News RSS** — key-free news; current headlines only, no historical archive
+- **Yahoo Finance news (yfinance)**: key-free ticker news, the latest ~100 stories per asset. It has no date-range query, so history accumulates by collecting daily.
+- **Google News RSS**: key-free keyword news, which also covers private AI companies. Current headlines only, with no historical archive.
 
 Keyed providers, each used only when its key is set in `.env` (see `.env.example`):
 
 - **Tiingo** (`TIINGO_API_TOKEN`) — equity price fallback after Yahoo. Tiingo's raw prices are split-adjusted on ingestion to match Yahoo's.
 - **Alpha Vantage** (`ALPHA_VANTAGE_API_KEY`) — historical news for equities and crypto, reaching back at least two years. It is the main source of training-period news. It is *not* a price fallback: on the free plan, full price history is premium.
 - **Finnhub** (`FINNHUB_API_KEY`) — dense company news for equities, but the free plan reaches back only about a year. Its price history is premium.
-- **Marketaux** (`MARKETAUX_API_TOKEN`) — current and historical financial news.
 
-Run `python -m src.ingestion.probe_providers` to see what your keys' free plans actually allow; nothing in this list assumes a paid tier. Historical news is collected by the resumable backfill, `python -m src.ingestion.run_news_backfill`, which stays inside free daily quotas and continues where it stopped on each run.
+Run `python -m src.ingestion.probe_providers` to see what your keys' free plans actually allow; nothing in this list assumes a paid tier. News is collected by `python -m src.ingestion.run_news_backfill`; run it daily. It backfills history from Finnhub and Alpha Vantage within their free daily quotas, resuming where it stopped. It also collects the latest Yahoo Finance news for every ingested ticker.
 
 Researched but **not implemented** (see `API Reference Documents/`): GDELT and other candidate providers.
 

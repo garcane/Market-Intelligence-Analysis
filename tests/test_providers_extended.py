@@ -8,16 +8,16 @@ import requests
 import src.ingestion.base as base
 import src.ingestion.providers as providers
 from src.ingestion.base import AccessDenied, ProviderError, QuotaExhausted
-from src.ingestion.orchestrator import default_historical_news_providers, default_market_providers
+from src.ingestion.orchestrator import default_historical_news_providers, default_market_providers, default_news_providers
 from src.ingestion.providers import (
     AlphaVantageMarketProvider,
     AlphaVantageNewsProvider,
     FinnhubNewsProvider,
-    MarketauxProvider,
     TiingoProvider,
+    YahooFinanceNewsProvider,
 )
 
-KEY_VARS = ["MARKETAUX_API_TOKEN", "TIINGO_API_TOKEN", "FINNHUB_API_KEY", "ALPHA_VANTAGE_API_KEY"]
+KEY_VARS = ["TIINGO_API_TOKEN", "FINNHUB_API_KEY", "ALPHA_VANTAGE_API_KEY"]
 SECRET = "SECRET-TOKEN-123"
 
 
@@ -96,9 +96,9 @@ def test_missing_key_is_access_denied():
 
 def test_token_redacted_from_network_errors(http):
     calls, queue = http
-    queue.append(requests.ConnectionError(f"Max retries exceeded with url: /v1/news/all?api_token={SECRET}"))
+    queue.append(requests.ConnectionError(f"Max retries exceeded with url: /query?apikey={SECRET}"))
     with pytest.raises(ProviderError) as info:
-        MarketauxProvider(api_token=SECRET).fetch_window_raw("NVDA", "2024-01-01", "2024-01-07")
+        AlphaVantageNewsProvider(api_key=SECRET).fetch_window_raw("NVDA", "2024-01-01", "2024-01-31")
     assert SECRET not in str(info.value)
     assert "***" in str(info.value)
 
@@ -175,24 +175,37 @@ def test_alpha_vantage_news_no_articles_is_empty_not_error(http):
     assert AlphaVantageNewsProvider.parse_window(raw).empty
 
 
-def test_marketaux_window_query_and_parse(http):
-    calls, queue = http
-    queue.append(FakeResponse(200, {"data": [{"uuid": "u1", "title": "Nvidia", "url": "https://x/4",
-                                              "published_at": "2024-01-31T20:11:00.000000Z", "source": "cnbc.com"}]}))
-    provider = MarketauxProvider(api_token=SECRET)
-    df = provider.parse_window(provider.fetch_window_raw("NVDA", "2024-01-25", "2024-01-31"))
-    params = calls[0]["params"]
-    assert params["symbols"] == "NVDA" and params["published_after"] == "2024-01-25"
-    assert params["published_before"] == "2024-01-31T23:59:59" and params["limit"] == 3
-    assert df["article_id"].iloc[0] == "u1"
-    assert df["published_at"].iloc[0].tzinfo is None
+def _yahoo_item(**content):
+    base = {"id": "y1", "title": "Nvidia unveils chip", "summary": "s", "pubDate": "2026-09-26T22:25:00Z",
+            "provider": {"displayName": "Motley Fool"}, "canonicalUrl": {"url": "https://x/5"}}
+    return {"id": "y1", "content": {**base, **content}}
 
 
-def test_marketaux_usage_limit_is_quota(http):
-    calls, queue = http
-    queue.append(FakeResponse(402, {"error": {"code": "usage_limit_reached"}}))
-    with pytest.raises(QuotaExhausted):
-        MarketauxProvider(api_token=SECRET).fetch_window_raw("NVDA", "2024-01-25", "2024-01-31")
+def test_yahoo_news_parses_nested_fields():
+    items = [_yahoo_item(),
+             _yahoo_item(id="y2", canonicalUrl=None, clickThroughUrl={"url": "https://x/6"}),  # fallback url
+             _yahoo_item(id="y3", title=""),  # no title: dropped
+             {"id": "odd"}]  # no content: dropped
+    df = YahooFinanceNewsProvider.parse_items(items, entity="NVDA")
+    assert df["url"].tolist() == ["https://x/5", "https://x/6"]
+    assert df["publisher"].iloc[0] == "Motley Fool"
+    assert df["source"].iloc[0] == "yahoo_finance_news"
+    assert df["published_at"].iloc[0] == pd.Timestamp("2026-09-26 22:25:00")  # UTC, tz-naive
+
+
+def test_yahoo_news_errors_become_provider_errors(monkeypatch):
+    import yfinance
+
+    class Broken:
+        def __init__(self, symbol):
+            pass
+
+        def get_news(self, **kwargs):
+            raise ValueError("Expecting value: line 1 column 1")
+
+    monkeypatch.setattr(yfinance, "Ticker", Broken)
+    with pytest.raises(ProviderError, match="yahoo_finance_news: NVDA"):
+        YahooFinanceNewsProvider().fetch_news("NVDA")
 
 
 # --- Key gating -----------------------------------------------------------------------
@@ -214,7 +227,11 @@ def test_chains_with_all_keys(monkeypatch):
         monkeypatch.setenv(var, SECRET)
     assert _names(default_market_providers("equity")) == ["yahoo_finance", "tiingo"]
     assert _names(default_market_providers("crypto")) == ["yahoo_finance", "coincodex"]
-    assert _names(default_historical_news_providers()) == ["finnhub", "alpha_vantage_news", "marketaux"]
+    assert _names(default_historical_news_providers()) == ["finnhub", "alpha_vantage_news"]
+
+
+def test_current_news_is_keyless():
+    assert _names(default_news_providers()) == ["google_news"]
 
 
 def test_alpha_vantage_quota_message_is_quota_and_hides_the_key(http):

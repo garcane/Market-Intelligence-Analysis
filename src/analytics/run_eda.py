@@ -214,8 +214,8 @@ def main() -> None:
                           "while `fact_market_prices` here is a 2023-06 to 2024-06 backfill. The two date "
                           "ranges genuinely do not overlap given today's date, so this correlation cannot "
                           "be computed from the current data sources. Fixing this requires either a "
-                          "historical news source (the Marketaux adapter would need date-range support "
-                          "added first) or restricting market backfills to the news source's actual "
+                          "historical news source (now available: python -m src.ingestion.run_news_backfill "
+                          "with Finnhub or Alpha Vantage keys) or restricting market backfills to the news source's actual "
                           "coverage window; it is not a bug "
                           "in the relationship-analysis code itself, which is otherwise unit-tested "
                           "(`tests/test_analytics.py::TestRelationships`).")

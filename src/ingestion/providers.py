@@ -251,58 +251,52 @@ class GoogleNewsProvider(NewsDataProvider):
         return standardize_news(fetch_headlines(query, max_results=max_results), source=self.name)
 
 
-def _parse_marketaux_items(items: list, entity: str | None) -> pd.DataFrame:
-    rows = [{
-        "article_id": item.get("uuid") or stable_record_id(item.get("url"), item.get("published_at")),
-        "published_at": item.get("published_at"),
-        "source": "marketaux",
-        "publisher": item.get("source"),
-        "title": item.get("title"),
-        "description": item.get("description"),
-        "url": item.get("url"),
-        "entity": entity,
-        "language": item.get("language", "en"),
-    } for item in items if item.get("title") and item.get("url")]
-    return standardize_news(pd.DataFrame(rows), source="marketaux")
+def _nested_url(value: Any) -> str | None:
+    return value.get("url") if isinstance(value, dict) else None
 
 
-# Probed 2026-09-26: "CC:BTC" and "BTCUSD" return articles; "BTC" and "BTC-USD" don't.
-MARKETAUX_CRYPTO_SYMBOLS = {"BTC": "CC:BTC", "ETH": "CC:ETH", "SOL": "CC:SOL"}
+class YahooFinanceNewsProvider(NewsDataProvider):
+    """Latest news for a Yahoo Finance symbol (e.g. NVDA, BTC-USD) via yfinance.
+    Keyless. There is no date-range query: each call returns the most recent
+    ~100 stories (probed 2026-09-26: 1 to 12 days back), so history builds
+    up by collecting daily rather than by backfilling."""
+    name = "yahoo_finance_news"
 
+    def __init__(self, count: int = 100):
+        self.count = count
 
-class MarketauxProvider(NewsDataProvider, HistoricalNewsProvider):
-    """Keyword search for current news, and symbol + date-window queries for the
-    historical backfill. Free plan: 100 requests/day, 3 articles per request."""
-    name = "marketaux"
-    url = "https://api.marketaux.com/v1/news/all"
-    window_days = 7
-    daily_request_budget = 100
-    min_interval_seconds = 1.0
+    def fetch_news(self, query: str, max_results: int | None = None) -> pd.DataFrame:
+        import yfinance as yf
 
-    def __init__(self, api_token: str | None = None, timeout: int = 30, window_limit: int = 3):
-        self.api_token = api_token or os.getenv("MARKETAUX_API_TOKEN")
-        self.timeout = timeout
-        self.window_limit = window_limit
-
-    def _get(self, params: dict) -> Any:
-        token = _require_key(self.api_token, self.name, "MARKETAUX_API_TOKEN")
-        return get_json(self.url, provider=self.name, timeout=self.timeout, secrets=(token,),
-                        params={**params, "api_token": token, "language": "en"})
-
-    def fetch_news(self, query: str, max_results: int = 30) -> pd.DataFrame:
-        payload = self._get({"search": query, "limit": min(max_results, 100)})
-        return _parse_marketaux_items(payload.get("data", []), entity=query)
-
-    def provider_symbol(self, market_id: str, asset_type: str) -> str | None:
-        return market_id if asset_type == "equity" else MARKETAUX_CRYPTO_SYMBOLS.get(market_id)
-
-    def fetch_window_raw(self, symbol: str, start: str, end: str) -> Any:
-        return self._get({"symbols": symbol, "published_after": start,
-                          "published_before": f"{end}T23:59:59", "limit": self.window_limit})
+        try:
+            items = yf.Ticker(query).get_news(count=max_results or self.count, tab="news")
+        except Exception as exc:  # noqa: BLE001 - yfinance raises assorted network/parse errors
+            raise ProviderError(f"{self.name}: {query}: {type(exc).__name__}: {exc}") from None
+        return self.parse_items(items or [], entity=query)
 
     @staticmethod
-    def parse_window(raw: Any) -> pd.DataFrame:
-        return _parse_marketaux_items(raw.get("data", []) if isinstance(raw, dict) else [], entity=None)
+    def parse_items(items: list, entity: str | None) -> pd.DataFrame:
+        rows = []
+        for item in items:
+            content = item.get("content") if isinstance(item, dict) else None
+            if not isinstance(content, dict):
+                continue
+            url = _nested_url(content.get("canonicalUrl")) or _nested_url(content.get("clickThroughUrl"))
+            if not content.get("title") or not url or not content.get("pubDate"):
+                continue
+            provider = content.get("provider") if isinstance(content.get("provider"), dict) else {}
+            rows.append({
+                "article_id": content.get("id") or item.get("id") or stable_record_id(url, content.get("pubDate")),
+                "published_at": content.get("pubDate"),
+                "source": "yahoo_finance_news",
+                "publisher": provider.get("displayName"),
+                "title": content.get("title"),
+                "description": content.get("summary") or content.get("description") or None,
+                "url": url,
+                "entity": entity,
+                "language": "en",
+            })
+        return standardize_news(pd.DataFrame(rows), source="yahoo_finance_news")
 
 
 class FinnhubNewsProvider(HistoricalNewsProvider):

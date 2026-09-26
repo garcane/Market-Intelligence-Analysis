@@ -13,7 +13,6 @@ from src.ingestion.providers import (
     CoinCodexProvider,
     FinnhubNewsProvider,
     GoogleNewsProvider,
-    MarketauxProvider,
     TiingoProvider,
     YahooFinanceProvider,
 )
@@ -69,11 +68,10 @@ def default_market_providers(asset_type: str | None = None) -> list[MarketDataPr
 
 
 def default_news_providers() -> list[NewsDataProvider]:
-    providers: list[NewsDataProvider] = []
-    if os.getenv("MARKETAUX_API_TOKEN"):
-        providers.append(MarketauxProvider())
-    providers.append(GoogleNewsProvider())
-    return providers
+    """Keyword search by company name, which also covers private companies
+    (OpenAI, Anthropic). Ticker news comes from YahooFinanceNewsProvider via
+    news_backfill.collect_recent_news."""
+    return [GoogleNewsProvider()]
 
 
 def default_historical_news_providers() -> list[HistoricalNewsProvider]:
@@ -83,6 +81,4 @@ def default_historical_news_providers() -> list[HistoricalNewsProvider]:
         providers.append(FinnhubNewsProvider())
     if os.getenv("ALPHA_VANTAGE_API_KEY"):
         providers.append(AlphaVantageNewsProvider())
-    if os.getenv("MARKETAUX_API_TOKEN"):
-        providers.append(MarketauxProvider())
     return providers
