@@ -72,6 +72,17 @@ class TestRiskMetrics:
         result = rolling_correlation(a, a, window=10)
         assert np.isclose(result.iloc[-1], 1.0)
 
+    def test_rolling_correlation_skips_days_either_series_is_missing(self):
+        # equities have no weekend rows in a frame that also holds daily crypto
+        rng = np.random.default_rng(1)
+        dates = pd.date_range("2024-01-01", periods=120, freq="D")
+        a = pd.Series(rng.normal(0, 0.01, 120), index=dates)
+        weekday = dates.dayofweek < 5
+        a[~weekday] = np.nan
+        result = rolling_correlation(a, a * 2, window=30)
+        assert result.notna().sum() == weekday.sum() - 29
+        assert np.allclose(result.dropna(), 1.0)
+
     def test_index_summary_keys(self):
         returns = pd.Series([0.01, -0.02, 0.03])
         summary = index_summary(returns)

@@ -49,7 +49,12 @@ def annualized_sharpe(returns: pd.Series, periods_per_year: int = 365) -> float:
 
 
 def rolling_correlation(a: pd.Series, b: pd.Series, window: int = 30) -> pd.Series:
-    return a.rolling(window).corr(b)
+    """Rolling correlation over the last `window` days on which both series
+    have a return. Aligning first matters for this universe: the returns frame
+    includes weekends (crypto trades daily) where equity series are NaN, and a
+    plain row window would then never hold `window` complete pairs."""
+    pair = pd.concat([a, b], axis=1).dropna()
+    return pair.iloc[:, 0].rolling(window).corr(pair.iloc[:, 1])
 
 
 def beta(index_returns: pd.Series, benchmark_returns: pd.Series) -> float:
