@@ -1,16 +1,69 @@
-"""Provider adapters. Provider-specific API details stay behind these boundaries."""
+"""Provider adapters. Provider-specific API details stay behind these boundaries.
+
+Keyed providers read their key from the environment (`.env`, see
+`.env.example`) and are only added to the default chains in
+`orchestrator.py` when that key is set, so key-free runs behave as before.
+"""
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import pandas as pd
 import requests
 
-from src.ingestion.base import MarketDataProvider, NewsDataProvider, ProviderError, stable_record_id, with_retries
+from src.ingestion.base import (
+    AccessDenied,
+    HistoricalNewsProvider,
+    MarketDataProvider,
+    NewsDataProvider,
+    ProviderError,
+    QuotaExhausted,
+    redact,
+    stable_record_id,
+    with_retries,
+)
 from src.ingestion.market_data import fetch_market_prices
 from src.ingestion.news_data import fetch_headlines
 from src.ingestion.standardize import standardize_market, standardize_news
 
+USER_AGENT = {"User-Agent": "AI-Market-Intelligence/1.0"}
+PRICE_COLUMNS = ["open", "high", "low", "close"]
+
+
+def get_json(url: str, *, provider: str, params: dict | None = None, headers: dict | None = None,
+             timeout: int = 30, secrets: tuple[str | None, ...] = ()) -> Any:
+    """GET a JSON endpoint with retries. Maps quota and access failures to
+    non-retryable errors and redacts `secrets` from every error message."""
+    def request() -> Any:
+        try:
+            response = requests.get(url, params=params, headers={**USER_AGENT, **(headers or {})},
+                                    timeout=timeout)
+        except requests.RequestException as exc:
+            # `from None`: the chained exception's message contains the full URL.
+            raise ProviderError(redact(f"{provider}: request failed: {exc}", *secrets)) from None
+        body = redact(response.text[:200], *secrets)
+        if response.status_code in (402, 429):
+            raise QuotaExhausted(f"{provider}: HTTP {response.status_code}: {body}")
+        if response.status_code in (401, 403):
+            raise AccessDenied(f"{provider}: HTTP {response.status_code}: {body}")
+        if response.status_code >= 400:
+            raise ProviderError(f"{provider}: HTTP {response.status_code}: {body}")
+        try:
+            return response.json()
+        except ValueError:
+            raise ProviderError(f"{provider}: response was not JSON: {body}") from None
+
+    return with_retries(request, provider=provider)
+
+
+def _require_key(value: str | None, provider: str, env_var: str) -> str:
+    if not value:
+        raise AccessDenied(f"{provider}: {env_var} is not set")
+    return value
+
+
+# --- Market data --------------------------------------------------------------------
 
 class YahooFinanceProvider(MarketDataProvider):
     name = "yahoo_finance"
@@ -32,7 +85,7 @@ class CoinCodexProvider(MarketDataProvider):
         url = f"{self.base_url}/{symbol}/{start}/{end}/{n_days}"
 
         def request() -> Any:
-            response = requests.get(url, timeout=self.timeout, headers={"User-Agent": "AI-Market-Intelligence/1.0"})
+            response = requests.get(url, timeout=self.timeout, headers=USER_AGENT)
             response.raise_for_status()
             return response.json()
 
@@ -63,6 +116,118 @@ class CoinCodexProvider(MarketDataProvider):
         return standardize_market(df, asset_id=symbol, source=self.name)
 
 
+class TiingoProvider(MarketDataProvider):
+    """Equity end-of-day prices (free plan: 30+ years of history, personal use only)."""
+    name = "tiingo"
+    base_url = "https://api.tiingo.com/tiingo/daily"
+
+    def __init__(self, api_token: str | None = None, timeout: int = 30):
+        self.api_token = api_token or os.getenv("TIINGO_API_TOKEN")
+        self.timeout = timeout
+
+    def fetch_prices(self, symbol: str, start: str, end: str) -> pd.DataFrame:
+        token = _require_key(self.api_token, self.name, "TIINGO_API_TOKEN")
+        payload = get_json(f"{self.base_url}/{symbol}/prices", provider=self.name,
+                           params={"startDate": start, "endDate": end, "format": "json"},
+                           headers={"Authorization": f"Token {token}"},
+                           timeout=self.timeout, secrets=(token,))
+        return self.parse_prices(payload, symbol)
+
+    @staticmethod
+    def parse_prices(payload: Any, symbol: str) -> pd.DataFrame:
+        if not isinstance(payload, list) or not payload:
+            raise ProviderError(f"tiingo: no price history returned for {symbol}")
+        df = pd.DataFrame(payload)
+        df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None).dt.normalize()
+        df = df.sort_values("date").reset_index(drop=True)
+        # Tiingo's OHLCV is raw; Yahoo's, used everywhere else, is split-adjusted.
+        # Divide each row by the product of the split factors that come after it,
+        # or a split (NVDA 10:1, 2024-06-10) reads as a 90% crash. Only splits
+        # inside the requested window are seen, so fetch through today.
+        split = df["splitFactor"].astype(float).fillna(1.0) if "splitFactor" in df else pd.Series(1.0, index=df.index)
+        later_splits = split[::-1].cumprod()[::-1].shift(-1).fillna(1.0)
+        for col in PRICE_COLUMNS:
+            df[col] = df[col].astype(float) / later_splits
+        df["volume"] = df["volume"].astype(float) * later_splits
+        df["adj_close"] = df["adjClose"].astype(float) if "adjClose" in df else float("nan")
+        df["source_record_id"] = [stable_record_id("tiingo", symbol, d) for d in df["date"]]
+        df = df[["date", *PRICE_COLUMNS, "adj_close", "volume", "source_record_id"]]
+        return standardize_market(df, asset_id=symbol, source="tiingo")
+
+
+def check_alpha_vantage_payload(payload: Any) -> None:
+    """Alpha Vantage reports errors, quota and premium-only endpoints inside an
+    HTTP 200 body, so they have to be detected from the JSON."""
+    if not isinstance(payload, dict):
+        raise ProviderError("alpha_vantage: unexpected response shape")
+    if "Error Message" in payload:
+        raise ProviderError(f"alpha_vantage: {str(payload['Error Message'])[:200]}")
+    has_data = "feed" in payload or any(k.startswith("Time Series") for k in payload)
+    for key in ("Note", "Information"):
+        message = str(payload.get(key) or "")
+        if not message or has_data:
+            continue
+        lower = message.lower()
+        if "premium" in lower:
+            raise AccessDenied(f"alpha_vantage: {message[:200]}")
+        if "apikey" in lower and ("invalid" in lower or "missing" in lower):
+            raise AccessDenied(f"alpha_vantage: {message[:200]}")
+        if any(p in lower for p in ("rate limit", "requests per day", "call frequency")):
+            raise QuotaExhausted(f"alpha_vantage: {message[:200]}")
+        if "no articles" in lower:
+            return
+        raise ProviderError(f"alpha_vantage: {message[:200]}")
+
+
+class AlphaVantageMarketProvider(MarketDataProvider):
+    """Last-resort equity fallback. The free TIME_SERIES_DAILY endpoint returns
+    raw (unadjusted) prices; outputsize=full may require a paid plan."""
+    name = "alpha_vantage"
+    url = "https://www.alphavantage.co/query"
+    MAX_START_GAP_DAYS = 10
+
+    def __init__(self, api_key: str | None = None, outputsize: str = "full", timeout: int = 30):
+        self.api_key = api_key or os.getenv("ALPHA_VANTAGE_API_KEY")
+        self.outputsize = outputsize
+        self.timeout = timeout
+
+    def fetch_prices(self, symbol: str, start: str, end: str) -> pd.DataFrame:
+        key = _require_key(self.api_key, self.name, "ALPHA_VANTAGE_API_KEY")
+        payload = get_json(self.url, provider=self.name, timeout=self.timeout, secrets=(key,),
+                           params={"function": "TIME_SERIES_DAILY", "symbol": symbol,
+                                   "outputsize": self.outputsize, "apikey": key})
+        return self.parse_prices(payload, symbol, start, end)
+
+    @classmethod
+    def parse_prices(cls, payload: Any, symbol: str, start: str, end: str) -> pd.DataFrame:
+        check_alpha_vantage_payload(payload)
+        series = payload.get("Time Series (Daily)")
+        if not series:
+            raise ProviderError(f"alpha_vantage: no price history returned for {symbol}")
+        df = pd.DataFrame.from_dict(series, orient="index").rename(columns={
+            "1. open": "open", "2. high": "high", "3. low": "low", "4. close": "close", "5. volume": "volume"})
+        df.index = pd.to_datetime(df.index)
+        df = df.rename_axis("date").reset_index().sort_values("date")
+        df = df[(df["date"] >= pd.Timestamp(start)) & (df["date"] <= pd.Timestamp(end))].reset_index(drop=True)
+        if df.empty:
+            raise ProviderError(f"alpha_vantage: no rows for {symbol} between {start} and {end}")
+        # Refuse truncated or unadjusted history rather than hand the chain a
+        # series that would overwrite a full, split-adjusted one.
+        gap_days = (df["date"].iloc[0] - pd.Timestamp(start)).days
+        if gap_days > cls.MAX_START_GAP_DAYS:
+            raise ProviderError(f"alpha_vantage: history for {symbol} starts {df['date'].iloc[0].date()}, "
+                                f"{gap_days} days after the requested {start} (outputsize limit?)")
+        close = df["close"].astype(float)
+        jump = close / close.shift(1)
+        if ((jump < 0.5) | (jump > 2.0)).any():
+            raise ProviderError(f"alpha_vantage: {symbol} has a split-sized one-day jump in unadjusted prices")
+        df["adj_close"] = float("nan")
+        df["source_record_id"] = [stable_record_id("alpha_vantage", symbol, d) for d in df["date"]]
+        return standardize_market(df, asset_id=symbol, source="alpha_vantage")
+
+
+# --- News --------------------------------------------------------------------------------
+
 class GoogleNewsProvider(NewsDataProvider):
     name = "google_news"
 
@@ -70,38 +235,141 @@ class GoogleNewsProvider(NewsDataProvider):
         return standardize_news(fetch_headlines(query, max_results=max_results), source=self.name)
 
 
-class MarketauxProvider(NewsDataProvider):
-    """Optional Marketaux adapter. It activates only when MARKETaux_API_TOKEN is configured."""
+def _parse_marketaux_items(items: list, entity: str | None) -> pd.DataFrame:
+    rows = [{
+        "article_id": item.get("uuid") or stable_record_id(item.get("url"), item.get("published_at")),
+        "published_at": item.get("published_at"),
+        "source": "marketaux",
+        "publisher": item.get("source"),
+        "title": item.get("title"),
+        "description": item.get("description"),
+        "url": item.get("url"),
+        "entity": entity,
+        "language": item.get("language", "en"),
+    } for item in items if item.get("title") and item.get("url")]
+    return standardize_news(pd.DataFrame(rows), source="marketaux")
+
+
+# Marketaux's crypto symbol format is unconfirmed; filled in once the probe
+# shows which format returns articles.
+MARKETAUX_CRYPTO_SYMBOLS: dict[str, str] = {}
+
+
+class MarketauxProvider(NewsDataProvider, HistoricalNewsProvider):
+    """Keyword search for current news, and symbol + date-window queries for the
+    historical backfill. Free plan: 100 requests/day, 3 articles per request."""
     name = "marketaux"
     url = "https://api.marketaux.com/v1/news/all"
+    window_days = 7
+    daily_request_budget = 100
+    min_interval_seconds = 1.0
 
-    def __init__(self, api_token: str | None = None, timeout: int = 30):
-        import os
+    def __init__(self, api_token: str | None = None, timeout: int = 30, window_limit: int = 3):
         self.api_token = api_token or os.getenv("MARKETAUX_API_TOKEN")
         self.timeout = timeout
+        self.window_limit = window_limit
+
+    def _get(self, params: dict) -> Any:
+        token = _require_key(self.api_token, self.name, "MARKETAUX_API_TOKEN")
+        return get_json(self.url, provider=self.name, timeout=self.timeout, secrets=(token,),
+                        params={**params, "api_token": token, "language": "en"})
 
     def fetch_news(self, query: str, max_results: int = 30) -> pd.DataFrame:
-        if not self.api_token:
-            raise ProviderError("marketaux: MARKETAUX_API_TOKEN is not configured")
-        params = {"api_token": self.api_token, "search": query, "language": "en", "limit": min(max_results, 100)}
+        payload = self._get({"search": query, "limit": min(max_results, 100)})
+        return _parse_marketaux_items(payload.get("data", []), entity=query)
 
-        def request() -> Any:
-            response = requests.get(self.url, params=params, timeout=self.timeout)
-            response.raise_for_status()
-            return response.json()
+    def provider_symbol(self, market_id: str, asset_type: str) -> str | None:
+        return market_id if asset_type == "equity" else MARKETAUX_CRYPTO_SYMBOLS.get(market_id)
 
-        payload = with_retries(request, provider=self.name)
-        rows = []
-        for item in payload.get("data", []):
-            rows.append({
-                "article_id": item.get("uuid") or stable_record_id(item.get("url"), item.get("published_at")),
-                "published_at": item.get("published_at"),
-                "source": self.name,
-                "publisher": item.get("source"),
-                "title": item.get("title"),
-                "description": item.get("description"),
-                "url": item.get("url"),
-                "entity": query,
-                "language": item.get("language", "en"),
-            })
-        return standardize_news(pd.DataFrame(rows), source=self.name)
+    def fetch_window_raw(self, symbol: str, start: str, end: str) -> Any:
+        return self._get({"symbols": symbol, "published_after": start,
+                          "published_before": f"{end}T23:59:59", "limit": self.window_limit})
+
+    @staticmethod
+    def parse_window(raw: Any) -> pd.DataFrame:
+        return _parse_marketaux_items(raw.get("data", []) if isinstance(raw, dict) else [], entity=None)
+
+
+class FinnhubNewsProvider(HistoricalNewsProvider):
+    """Company news by date range. North American equities only; free plan is
+    rate-limited to 60 calls/minute."""
+    name = "finnhub"
+    url = "https://finnhub.io/api/v1/company-news"
+    window_days = 7
+    daily_request_budget = None
+    min_interval_seconds = 1.1
+
+    def __init__(self, api_key: str | None = None, timeout: int = 30):
+        self.api_key = api_key or os.getenv("FINNHUB_API_KEY")
+        self.timeout = timeout
+
+    def provider_symbol(self, market_id: str, asset_type: str) -> str | None:
+        return market_id if asset_type == "equity" else None
+
+    def fetch_window_raw(self, symbol: str, start: str, end: str) -> Any:
+        key = _require_key(self.api_key, self.name, "FINNHUB_API_KEY")
+        payload = get_json(self.url, provider=self.name, timeout=self.timeout, secrets=(key,),
+                           params={"symbol": symbol, "from": start, "to": end},
+                           headers={"X-Finnhub-Token": key})
+        if isinstance(payload, dict) and payload.get("error"):
+            raise AccessDenied(f"finnhub: {str(payload['error'])[:200]}")
+        if not isinstance(payload, list):
+            raise ProviderError("finnhub: unexpected response shape")
+        return payload
+
+    @staticmethod
+    def parse_window(raw: Any) -> pd.DataFrame:
+        rows = [{
+            "article_id": str(item.get("id") or stable_record_id(item.get("url"), item.get("datetime"))),
+            "published_at": pd.to_datetime(item.get("datetime"), unit="s"),
+            "source": "finnhub",
+            "publisher": item.get("source"),
+            "title": item.get("headline"),
+            "description": item.get("summary"),
+            "url": item.get("url"),
+            "language": "en",
+        } for item in (raw or []) if item.get("headline") and item.get("url") and item.get("datetime")]
+        return standardize_news(pd.DataFrame(rows), source="finnhub")
+
+
+class AlphaVantageNewsProvider(HistoricalNewsProvider):
+    """NEWS_SENTIMENT by ticker and time window; covers crypto as CRYPTO:<symbol>.
+    Free plan: about 25 requests/day."""
+    name = "alpha_vantage_news"
+    url = "https://www.alphavantage.co/query"
+    window_days = 30
+    daily_request_budget = 25
+    min_interval_seconds = 13.0
+
+    def __init__(self, api_key: str | None = None, timeout: int = 30, limit: int = 1000):
+        self.api_key = api_key or os.getenv("ALPHA_VANTAGE_API_KEY")
+        self.timeout = timeout
+        self.limit = limit
+
+    def provider_symbol(self, market_id: str, asset_type: str) -> str | None:
+        return market_id if asset_type == "equity" else f"CRYPTO:{market_id}"
+
+    def fetch_window_raw(self, symbol: str, start: str, end: str) -> Any:
+        key = _require_key(self.api_key, self.name, "ALPHA_VANTAGE_API_KEY")
+        payload = get_json(self.url, provider=self.name, timeout=self.timeout, secrets=(key,), params={
+            "function": "NEWS_SENTIMENT", "tickers": symbol, "limit": self.limit, "sort": "LATEST",
+            "time_from": pd.Timestamp(start).strftime("%Y%m%dT0000"),
+            "time_to": pd.Timestamp(end).strftime("%Y%m%dT2359"),
+            "apikey": key})
+        check_alpha_vantage_payload(payload)
+        return payload
+
+    @staticmethod
+    def parse_window(raw: Any) -> pd.DataFrame:
+        feed = raw.get("feed", []) if isinstance(raw, dict) else []
+        rows = [{
+            "article_id": stable_record_id(item.get("url"), item.get("time_published")),
+            "published_at": pd.to_datetime(item.get("time_published"), format="%Y%m%dT%H%M%S"),
+            "source": "alpha_vantage_news",
+            "publisher": item.get("source"),
+            "title": item.get("title"),
+            "description": item.get("summary"),
+            "url": item.get("url"),
+            "language": "en",
+        } for item in feed if item.get("title") and item.get("url") and item.get("time_published")]
+        return standardize_news(pd.DataFrame(rows), source="alpha_vantage_news")

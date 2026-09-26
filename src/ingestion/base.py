@@ -21,6 +21,18 @@ class ProviderError(RuntimeError):
     """Raised when a provider cannot return usable data."""
 
 
+class NonRetryableError(ProviderError):
+    """A failure that retrying cannot fix; with_retries re-raises it immediately."""
+
+
+class QuotaExhausted(NonRetryableError):
+    """The provider's rate limit or daily quota is used up."""
+
+
+class AccessDenied(NonRetryableError):
+    """The key is invalid, or the endpoint needs a paid plan."""
+
+
 class MarketDataProvider(ABC):
     """Provider contract: implementations return the project's canonical market schema."""
 
@@ -41,6 +53,31 @@ class NewsDataProvider(ABC):
         raise NotImplementedError
 
 
+class HistoricalNewsProvider(ABC):
+    """News for one symbol over a date window, split into fetch and parse so the
+    backfill can cache raw responses and re-parse them without spending quota."""
+
+    name: str
+    window_days: int
+    daily_request_budget: int | None = None
+
+    @abstractmethod
+    def provider_symbol(self, market_id: str, asset_type: str) -> str | None:
+        """The provider's symbol for a market, or None if it isn't covered."""
+
+    @abstractmethod
+    def fetch_window_raw(self, symbol: str, start: str, end: str) -> Any:
+        raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def parse_window(raw: Any) -> pd.DataFrame:
+        """Parse a raw response into the standardized news schema."""
+
+    def fetch_window(self, symbol: str, start: str, end: str) -> pd.DataFrame:
+        return self.parse_window(self.fetch_window_raw(symbol, start, end))
+
+
 def with_retries(
     operation: Callable[[], Any],
     *,
@@ -53,12 +90,24 @@ def with_retries(
     for attempt in range(1, max_retries + 1):
         try:
             return operation()
+        except NonRetryableError:
+            raise
         except Exception as exc:  # noqa: BLE001 - provider/network libraries vary
             last_error = exc
             logger.warning("%s attempt %d/%d failed: %s", provider, attempt, max_retries, exc)
             if attempt < max_retries:
                 time.sleep(backoff_seconds * attempt)
     raise ProviderError(f"{provider}: all {max_retries} attempts failed: {last_error}") from last_error
+
+
+def redact(text: str, *secrets: str | None) -> str:
+    """Mask secrets in text headed for logs or reports. Error messages from
+    requests embed the full URL, and some providers only accept the token as
+    a query parameter."""
+    for secret in secrets:
+        if secret:
+            text = text.replace(secret, "***")
+    return text
 
 
 def add_provenance(df: pd.DataFrame, *, source: str, asset_id: str | None = None) -> pd.DataFrame:

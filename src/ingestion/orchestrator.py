@@ -7,8 +7,17 @@ from time import perf_counter
 
 import pandas as pd
 
-from src.ingestion.base import MarketDataProvider, NewsDataProvider
-from src.ingestion.providers import CoinCodexProvider, GoogleNewsProvider, MarketauxProvider, YahooFinanceProvider
+from src.ingestion.base import HistoricalNewsProvider, MarketDataProvider, NewsDataProvider
+from src.ingestion.providers import (
+    AlphaVantageMarketProvider,
+    AlphaVantageNewsProvider,
+    CoinCodexProvider,
+    FinnhubNewsProvider,
+    GoogleNewsProvider,
+    MarketauxProvider,
+    TiingoProvider,
+    YahooFinanceProvider,
+)
 
 
 def fetch_market_with_fallback(providers: list[MarketDataProvider], symbol: str, start: str, end: str) -> tuple[pd.DataFrame, dict]:
@@ -52,7 +61,13 @@ def default_market_providers(asset_type: str | None = None) -> list[MarketDataPr
     # CoinCodex stays wired up as a fallback, not the primary source.
     if asset_type == "crypto":
         return [YahooFinanceProvider(), CoinCodexProvider()]
-    return [YahooFinanceProvider()]
+    # Keyed fallbacks join the chain only when their key is set.
+    providers: list[MarketDataProvider] = [YahooFinanceProvider()]
+    if os.getenv("TIINGO_API_TOKEN"):
+        providers.append(TiingoProvider())
+    if os.getenv("ALPHA_VANTAGE_API_KEY"):
+        providers.append(AlphaVantageMarketProvider())
+    return providers
 
 
 def default_news_providers() -> list[NewsDataProvider]:
@@ -60,4 +75,16 @@ def default_news_providers() -> list[NewsDataProvider]:
     if os.getenv("MARKETAUX_API_TOKEN"):
         providers.append(MarketauxProvider())
     providers.append(GoogleNewsProvider())
+    return providers
+
+
+def default_historical_news_providers() -> list[HistoricalNewsProvider]:
+    """Providers for the news backfill, highest article yield per request first."""
+    providers: list[HistoricalNewsProvider] = []
+    if os.getenv("FINNHUB_API_KEY"):
+        providers.append(FinnhubNewsProvider())
+    if os.getenv("ALPHA_VANTAGE_API_KEY"):
+        providers.append(AlphaVantageNewsProvider())
+    if os.getenv("MARKETAUX_API_TOKEN"):
+        providers.append(MarketauxProvider())
     return providers

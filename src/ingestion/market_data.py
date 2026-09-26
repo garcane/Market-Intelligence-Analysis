@@ -23,6 +23,22 @@ class FetchError(Exception):
     pass
 
 
+class _CaptureErrors(logging.Handler):
+    """Collects yfinance's own error messages. yfinance logs the real cause
+    (e.g. YFRateLimitError) and returns an empty frame; without this, all the
+    caller sees is "empty response", which once got a stale-dependency bug
+    misdiagnosed as a rate limit (FAILURE_LOG.md #24)."""
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.ERROR)
+        self.messages: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        message = " ".join(record.getMessage().split())
+        if message and message not in self.messages:
+            self.messages.append(message)
+
+
 def _normalize_columns(raw: pd.DataFrame) -> pd.DataFrame:
     """yfinance returns a MultiIndex-or-flat frame depending on version/args;
     normalize to the flat schema the rest of the pipeline expects."""
@@ -45,14 +61,21 @@ def fetch_market_prices(symbol: str, start: str, end: str,
     Raises FetchError if all retries are exhausted or the response is empty.
     """
     last_error: Exception | None = None
+    yf_logger = logging.getLogger("yfinance")
     for attempt in range(1, max_retries + 1):
+        capture = _CaptureErrors()
+        yf_logger.addHandler(capture)
         try:
-            raw = yf.download(
-                symbol, start=start, end=end, progress=False,
-                timeout=REQUEST_TIMEOUT_SECONDS, auto_adjust=False,
-            )
+            try:
+                raw = yf.download(
+                    symbol, start=start, end=end, progress=False,
+                    timeout=REQUEST_TIMEOUT_SECONDS, auto_adjust=False,
+                )
+            finally:
+                yf_logger.removeHandler(capture)
             if raw is None or raw.empty:
-                raise FetchError(f"empty response for symbol={symbol}")
+                cause = "; ".join(capture.messages[-2:]) or "no error reported by yfinance"
+                raise FetchError(f"empty response for symbol={symbol} ({cause})")
             df = _normalize_columns(raw)
             if "market_cap" not in df.columns:
                 # float NaN (not pd.NA) so the column stays a plain numeric dtype
