@@ -457,7 +457,5 @@ No live automated order execution is implemented by the project.
 
 ---
 
-## Author
-
-**garcane**  
+## Author  
 GitHub: [@garcane](https://github.com/garcane)
