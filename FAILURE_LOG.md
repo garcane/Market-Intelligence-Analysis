@@ -38,6 +38,9 @@ This log records every failure found in the project, including the ones in my ow
 | 28 | §20 | Statistical | "Sentiment slightly hurts" claimed from a single run | One run treated as a result | The reproduction flipped the sign; corrected to "no measurable effect" |
 | 29 | §30 | Documentation | README listed Finnhub/GDELT as current providers, plus wrong dashboard sections and SUI status | Written ahead of or apart from the code | Corrected against the code |
 | 30 | §36 | Documentation | Docs told readers to set `NEWS_API_KEY`; `.env.example` missing | The variable was never wired to any provider | Variable removed, `.env.example` restored, docs corrected |
+| 31 | Providers | Data *(latent)* | Routine news ingestion overwrote `news.parquet`, which would have wiped any backfilled history | `ingest_news` wrote only the current batch | Shared `merge_news_frames`; verified live, 282 → 302 rows |
+| 32 | Providers | Code *(security)* | API tokens could appear in error messages and health reports | `requests` errors embed the full URL; Marketaux and Alpha Vantage only take the token as a URL parameter | `get_json` redacts tokens from every error; header auth where the provider supports it |
+| 33 | Providers | Code | yfinance failures reported only as "empty response" | yfinance logs the real cause and returns an empty frame | The cause is captured and included in `FetchError` (the gap behind #24's misdiagnosis) |
 
 No **Leakage**-class failure reached a result. The one real leakage vector found (labels crossing a split boundary) was designed out by the Stage 8 embargo before any model was trained (`SPLIT.md`).
 
@@ -55,5 +58,5 @@ The honest assessment is that the architectural fix came later than the rule ask
 ## Open Items
 
 - No date-completeness check for 24/7 assets in `validate_market_prices` (row 12 was caught by manual inspection, not automation).
-- Equities have no fallback provider.
+- Equity fallbacks (Tiingo, then Alpha Vantage) and the historical news backfill are built and unit-tested, but **not yet verified live**: no API keys were configured when they were written. The baseline they need to improve on is measured: training-period news coverage is 0 of 3,696 asset-days (`data/processed/news_coverage.json`).
 - `requirements.txt` still carries unused legacy packages from the original `pip freeze` (e.g. `keras`, `keras-tuner`, `h5py`).

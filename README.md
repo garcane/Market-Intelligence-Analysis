@@ -80,11 +80,17 @@ Implemented providers (`src/ingestion/providers.py`):
 - **Yahoo Finance / yfinance** — primary market data for equities *and* crypto
 - **CoinCodex** — crypto fallback only (found to drop ~11% of days when used as primary; see `CHECKPOINT.md`)
 - **Google News RSS** — key-free news; current headlines only, no historical archive
-- **Marketaux** — structured financial news, active only when `MARKETAUX_API_TOKEN` is set
 
-Researched but **not yet implemented** (see `API Reference Documents/`): Finnhub, GDELT and other candidate providers.
+Keyed providers, each used only when its key is set in `.env` (see `.env.example`):
 
-Equities currently have no fallback provider — a Yahoo Finance rate limit blocks equity ingestion entirely (observed during the reproducibility test).
+- **Tiingo** (`TIINGO_API_TOKEN`) — equity price fallback after Yahoo. Tiingo's raw prices are split-adjusted on ingestion to match Yahoo's.
+- **Alpha Vantage** (`ALPHA_VANTAGE_API_KEY`) — last-resort equity price fallback, plus historical news, including crypto. It refuses truncated or unadjusted history instead of passing it on.
+- **Finnhub** (`FINNHUB_API_KEY`) — historical company news (equities).
+- **Marketaux** (`MARKETAUX_API_TOKEN`) — current and historical financial news.
+
+Run `python -m src.ingestion.probe_providers` to see what your keys' free plans actually allow; nothing in this list assumes a paid tier. Historical news is collected by the resumable backfill, `python -m src.ingestion.run_news_backfill`, which stays inside free daily quotas and continues where it stopped on each run.
+
+Researched but **not implemented** (see `API Reference Documents/`): GDELT and other candidate providers.
 
 Provider quotas, availability, licensing and API terms can change and should be verified before deployment.
 
