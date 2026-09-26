@@ -37,6 +37,13 @@ const columns = [
 
 type Filter = "all" | AssetKind;
 
+function historyMonths(rows: MarketRow[] | undefined): string {
+  if (!rows?.length) return "—";
+  const start = Math.min(...rows.map((r) => Date.parse(r.start_date)));
+  const end = Math.max(...rows.map((r) => Date.parse(r.end_date)));
+  return `${Math.round((end - start) / (30.44 * 86400000))} months`;
+}
+
 export default function Overview() {
   const markets = useMarkets();
   const meta = useMeta();
@@ -60,7 +67,7 @@ export default function Overview() {
         description="How AI-exposed equities, crypto assets and their benchmarks have moved, with the news, sentiment and models built on top of them."
       />
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard
           tone="yellow"
           label="Assets tracked"
@@ -70,7 +77,7 @@ export default function Overview() {
         <StatCard
           tone="teal"
           label="Price history"
-          value={markets.data?.[0] ? `${Math.round(markets.data[0].n_days / 21)} months` : "—"}
+          value={historyMonths(markets.data)}
           hint={`to ${shortDate(meta.data?.latest_price_date)}`}
         />
         <StatCard

@@ -1,4 +1,4 @@
-import { BarChart, GaugeChart, HeatmapChart, LineChart } from "echarts/charts";
+import { BarChart, HeatmapChart, LineChart, ScatterChart } from "echarts/charts";
 import {
   DataZoomComponent,
   GridComponent,
@@ -14,7 +14,7 @@ import { useEffect, useRef } from "react";
 import { PALETTE } from "../lib/chartTheme";
 
 echarts.use([
-  LineChart, BarChart, HeatmapChart, GaugeChart,
+  LineChart, BarChart, HeatmapChart, ScatterChart,
   GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, VisualMapComponent, MarkLineComponent,
   CanvasRenderer,
 ]);

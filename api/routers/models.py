@@ -33,6 +33,9 @@ def _feature_table(name: str, value_cols: list[str]) -> list[dict]:
         return []
     df = df.copy()
     df["feature"] = df["feature"].str.replace(FEATURE_PREFIX, "", regex=True)
+    if "coefficient" in df.columns and "importance" not in df.columns:
+        # logistic regression: signed coefficients on standardised features
+        df = df.rename(columns={"coefficient": "importance"})
     keep = ["feature"] + [c for c in value_cols if c in df.columns]
     return data.records(df[keep], date_cols=())
 

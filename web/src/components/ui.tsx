@@ -48,9 +48,9 @@ export function StatCard({ label, value, hint, tone = "white", valueClassName }:
   valueClassName?: string;
 }) {
   return (
-    <div className={clsx("min-w-0 rounded-[20px] p-5", TONES[tone])}>
+    <div className={clsx("min-w-0 rounded-[20px] p-4 sm:p-5", TONES[tone])}>
       <div className="text-[13px] font-medium text-charcoal/80">{label}</div>
-      <div className={clsx("tabular mt-2 truncate text-[28px] leading-tight font-medium tracking-tight", valueClassName)}>
+      <div className={clsx("tabular mt-2 truncate text-[22px] leading-tight font-medium tracking-tight sm:text-[28px]", valueClassName)}>
         {value}
       </div>
       {hint && <div className="mt-1 text-[13px] text-charcoal/70">{hint}</div>}

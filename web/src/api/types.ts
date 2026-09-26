@@ -133,7 +133,6 @@ export interface EventOutcome {
   t0_raw_return?: Num;
   t0_abnormal_return?: Num;
   cumulative_abnormal_return_full_window?: Num;
-  abnormal_returns?: Record<string, Num>;
 }
 
 export interface Events {
@@ -141,6 +140,7 @@ export interface Events {
   benchmark: string | null;
   window: number | null;
   outcomes: EventOutcome[];
+  abnormal_returns: Record<string, { day: number; value: number }[]>;
   caar: { day: number; AAR: Num; CAAR: Num; n_events: number }[];
 }
 

@@ -65,10 +65,12 @@ def data_dir(tmp_path, monkeypatch):
     processed = tmp_path / "processed"
     processed.mkdir()
     (processed / "model_report_h5d.json").write_text(json.dumps({
-        "horizon": 5, "leaderboard": ["xgboost"], "any_suspiciously_high_auc": False, "val_positive_rate": 0.4,
+        "horizon": 5, "leaderboard": ["xgboost", "logistic_regression"], "any_suspiciously_high_auc": False, "val_positive_rate": 0.4,
         "models": {"xgboost": {"validation_metrics": {"pr_auc": 0.41, "roc_auc": float("nan")}}}}))
     pd.DataFrame({"feature": ["numeric__rsi_14d"], "importance": [0.2]}).to_csv(
         processed / "importance_xgboost_h5d.csv", index=False)
+    pd.DataFrame({"feature": ["numeric__momentum_10d"], "coefficient": [-0.5], "abs_coefficient": [0.5]}).to_csv(
+        processed / "importance_logistic_regression_h5d.csv", index=False)
     (processed / "indices_report.json").write_text(json.dumps({"index_members": {}, "indices": {}}))
     (processed / "event_study_report.json").write_text(json.dumps({"benchmark": "SPX", "window": 5, "events": []}))
     pd.DataFrame({"": [-1, 0, 1], "AAR": [0.0, 0.01, 0.0], "CAAR": [0.0, 0.01, 0.01], "n_events": [2, 2, 2]}).to_csv(
@@ -167,6 +169,8 @@ def test_model_report_nan_is_serialised_as_null(local):
 def test_explainability_strips_transformer_prefixes(local):
     body = local.get("/api/models/explainability").json()
     assert body["importance"]["xgboost"] == [{"feature": "rsi_14d", "importance": 0.2}]
+    # logistic regression reports signed coefficients; the sign is kept
+    assert body["importance"]["logistic_regression"] == [{"feature": "momentum_10d", "importance": -0.5}]
 
 
 def test_events_include_caar_series(local):

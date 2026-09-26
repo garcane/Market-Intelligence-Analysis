@@ -8,6 +8,7 @@ from api import data
 from api.deps import get_settings
 from api.settings import Settings
 from src.analytics.indices import BENCHMARK_IDS, INDEX_MEMBERS, build_index_return, cumulative_return, rolling_correlation
+from src.analytics.event_study import abnormal_return_window
 from src.analytics.market_stats import add_returns
 
 router = APIRouter(prefix="/api", tags=["reference"])
@@ -64,8 +65,33 @@ def indices(settings: Settings = Depends(get_settings)) -> dict:
     return data.clean({**report, "cumulative_return": cumulative, "rolling_corr_vs_spx": rolling_vs_spx})
 
 
+def _event_windows(outcomes: list[dict], benchmark: str | None, window: int | None,
+                   settings: Settings) -> dict[str, list[dict]]:
+    """Daily abnormal returns around each event, recomputed from cached prices
+    with the same function the event study used (src.analytics.event_study)."""
+    if not benchmark or not window:
+        return {}
+    bench = data.market_prices(benchmark, settings.excluded_sources)
+    if bench is None:
+        return {}
+    bench = add_returns(bench[["date", "close"]])
+    windows = {}
+    for o in outcomes:
+        if o.get("status") != "OK":
+            continue
+        asset = data.market_prices(o["market_id"], settings.excluded_sources)
+        if asset is None:
+            continue
+        asset = add_returns(asset[["date", "close"]])
+        ar = abnormal_return_window(asset["return_1d"], asset["date"], bench["return_1d"], bench["date"],
+                                    o["event_date"], window)
+        if ar is not None:
+            windows[o["event_id"]] = [{"day": int(d), "value": float(v)} for d, v in ar.items()]
+    return windows
+
+
 @router.get("/events")
-def events() -> dict:
+def events(settings: Settings = Depends(get_settings)) -> dict:
     ev = data.events()
     report = data.processed_json("event_study_report.json") or {}
     caar = data.processed_csv("event_study_caar.csv")
@@ -78,5 +104,7 @@ def events() -> dict:
         "benchmark": report.get("benchmark"),
         "window": report.get("window"),
         "outcomes": report.get("events", []),
+        "abnormal_returns": _event_windows(report.get("events", []), report.get("benchmark"),
+                                           report.get("window"), settings),
         "caar": caar_rows,
     })
