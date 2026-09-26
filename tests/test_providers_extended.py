@@ -215,3 +215,23 @@ def test_chains_with_all_keys(monkeypatch):
     assert _names(default_market_providers("equity")) == ["yahoo_finance", "tiingo"]
     assert _names(default_market_providers("crypto")) == ["yahoo_finance", "coincodex"]
     assert _names(default_historical_news_providers()) == ["finnhub", "alpha_vantage_news", "marketaux"]
+
+
+def test_alpha_vantage_quota_message_is_quota_and_hides_the_key(http):
+    # The real daily-limit message echoes the key and mentions "premium plans".
+    calls, queue = http
+    message = (f"We have detected your API key as {SECRET} and our standard API rate limit is 25 requests "
+               "per day. Please subscribe to any of the premium plans to instantly remove all daily rate limits.")
+    queue.append(FakeResponse(200, {"Information": message}))
+    with pytest.raises(QuotaExhausted) as info:
+        AlphaVantageNewsProvider(api_key=SECRET).fetch_window_raw("NVDA", "2024-01-01", "2024-01-31")
+    assert SECRET not in str(info.value)
+    assert "API key as ***" in str(info.value)
+
+
+def test_alpha_vantage_hides_echoed_keys_it_was_not_given():
+    with pytest.raises(QuotaExhausted) as info:
+        providers.check_alpha_vantage_payload(
+            {"Information": "your API key as ZZZZ9999ABCD; rate limit is 25 requests per day"})
+    assert "ZZZZ9999ABCD" not in str(info.value)
+    assert "API key as ***" in str(info.value)

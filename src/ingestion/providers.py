@@ -7,6 +7,7 @@ Keyed providers read their key from the environment (`.env`, see
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 
 import pandas as pd
@@ -155,28 +156,38 @@ class TiingoProvider(MarketDataProvider):
         return standardize_market(df, asset_id=symbol, source="tiingo")
 
 
-def check_alpha_vantage_payload(payload: Any) -> None:
+AV_KEY_ECHO = re.compile(r"(api ?key (?:as|is|=)?\s*)[A-Z0-9]{8,}", re.IGNORECASE)
+
+
+def check_alpha_vantage_payload(payload: Any, api_key: str | None = None) -> None:
     """Alpha Vantage reports errors, quota and premium-only endpoints inside an
-    HTTP 200 body, so they have to be detected from the JSON."""
+    HTTP 200 body, so they have to be detected from the JSON. Its quota message
+    echoes the caller's API key, so every message is redacted before raising."""
     if not isinstance(payload, dict):
         raise ProviderError("alpha_vantage: unexpected response shape")
+
+    def clean(text: str) -> str:
+        return AV_KEY_ECHO.sub(r"\1***", redact(text, api_key))[:200]
+
     if "Error Message" in payload:
-        raise ProviderError(f"alpha_vantage: {str(payload['Error Message'])[:200]}")
+        raise ProviderError(f"alpha_vantage: {clean(str(payload['Error Message']))}")
     has_data = "feed" in payload or any(k.startswith("Time Series") for k in payload)
     for key in ("Note", "Information"):
         message = str(payload.get(key) or "")
         if not message or has_data:
             continue
         lower = message.lower()
-        if "premium" in lower:
-            raise AccessDenied(f"alpha_vantage: {message[:200]}")
-        if "apikey" in lower and ("invalid" in lower or "missing" in lower):
-            raise AccessDenied(f"alpha_vantage: {message[:200]}")
+        # The daily-quota message also says "subscribe to any of the premium
+        # plans", so quota phrases must be checked before "premium".
         if any(p in lower for p in ("rate limit", "requests per day", "call frequency")):
-            raise QuotaExhausted(f"alpha_vantage: {message[:200]}")
+            raise QuotaExhausted(f"alpha_vantage: {clean(message)}")
+        if "premium" in lower:
+            raise AccessDenied(f"alpha_vantage: {clean(message)}")
+        if "apikey" in lower and ("invalid" in lower or "missing" in lower):
+            raise AccessDenied(f"alpha_vantage: {clean(message)}")
         if "no articles" in lower:
             return
-        raise ProviderError(f"alpha_vantage: {message[:200]}")
+        raise ProviderError(f"alpha_vantage: {clean(message)}")
 
 
 class AlphaVantageMarketProvider(MarketDataProvider):
@@ -200,6 +211,7 @@ class AlphaVantageMarketProvider(MarketDataProvider):
         payload = get_json(self.url, provider=self.name, timeout=self.timeout, secrets=(key,),
                            params={"function": "TIME_SERIES_DAILY", "symbol": symbol,
                                    "outputsize": self.outputsize, "apikey": key})
+        check_alpha_vantage_payload(payload, key)
         return self.parse_prices(payload, symbol, start, end)
 
     @classmethod
@@ -364,7 +376,7 @@ class AlphaVantageNewsProvider(HistoricalNewsProvider):
             "time_from": pd.Timestamp(start).strftime("%Y%m%dT0000"),
             "time_to": pd.Timestamp(end).strftime("%Y%m%dT2359"),
             "apikey": key})
-        check_alpha_vantage_payload(payload)
+        check_alpha_vantage_payload(payload, key)
         return payload
 
     @staticmethod
