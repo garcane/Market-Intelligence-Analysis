@@ -12,6 +12,7 @@ from datetime import date
 from src.config import PROCESSED_DIR
 from src.ingestion.base import MarketDataProvider, NewsDataProvider
 from src.ingestion.orchestrator import default_market_providers, default_news_providers, fetch_market_with_fallback, fetch_news_with_fallback
+from src.ingestion.standardize import merge_news_frames, to_fact_news
 from src.ingestion.store import market_prices_path, news_path, round_trip_matches
 from src.ingestion.universe import build_market_universe, load_companies
 from src.ingestion.validate import validate_market_prices, validate_news
@@ -93,14 +94,7 @@ def ingest_news(max_results_per_query: int = 20, companies_limit: int | None = N
     import pandas as pd
     combined = pd.concat(all_frames, ignore_index=True)
     combined = combined.drop_duplicates(subset=["url"])
-    # Providers (src/ingestion/providers.py) return the standardized
-    # article_id/published_at/publisher schema; rename back to the fact_news
-    # schema (news_id/timestamp/source_id, DATA_MODEL.md 3.2) that
-    # match_entities and every downstream Stage 4-8 module actually expects.
-    combined = combined.rename(columns={
-        "article_id": "news_id", "published_at": "timestamp", "publisher": "source_id",
-    })
-    combined = match_entities(combined)
+    combined = match_entities(to_fact_news(combined))
 
     validation = validate_news(combined)
     report["row_count"] = validation.row_count
@@ -109,14 +103,20 @@ def ingest_news(max_results_per_query: int = 20, companies_limit: int | None = N
         report["issues"].extend(validation.issues)
         return report
 
-    store_df = combined.drop(columns=["query"])
-    matches, rt_issues = round_trip_matches(store_df, news_path())
+    # Merge rather than overwrite: news.parquet also holds the historical
+    # backfill (src/ingestion/run_news_backfill.py), which a plain write
+    # would wipe on the next routine ingestion.
+    path = news_path()
+    existing = pd.read_parquet(path) if path.exists() else None
+    store_df = merge_news_frames(existing, combined.drop(columns=["query"]))
+    matches, rt_issues = round_trip_matches(store_df, path)
     if not matches:
         report["status"] = "ROUND_TRIP_FAILED"
         report["issues"].extend(rt_issues)
         return report
 
     report["status"] = "PASS"
+    report["stored_row_count"] = len(store_df)
     report["matched_company_rate"] = float(combined["matched_company_id"].notna().mean())
     return report
 

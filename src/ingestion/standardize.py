@@ -14,6 +14,28 @@ NEWS_COLUMNS = [
 ]
 
 
+FACT_NEWS_RENAME = {"article_id": "news_id", "published_at": "timestamp", "publisher": "source_id"}
+
+
+def to_fact_news(standardized: pd.DataFrame) -> pd.DataFrame:
+    """Provider schema (article_id/published_at/publisher) → the fact_news
+    schema (news_id/timestamp/source_id, DATA_MODEL.md §3.2) that sentiment,
+    features and validation all key off."""
+    return standardized.rename(columns=FACT_NEWS_RENAME)
+
+
+def merge_news_frames(existing: pd.DataFrame | None, new: pd.DataFrame) -> pd.DataFrame:
+    """Append new articles to the stored ones, one row per url. Existing rows
+    win, so an article's news_id (and any sentiment already keyed to it) stays
+    stable across runs."""
+    if existing is None or existing.empty:
+        combined = new.copy()
+    else:
+        combined = pd.concat([existing, new], ignore_index=True)
+    combined = combined.drop_duplicates(subset=["url"], keep="first")
+    return combined.sort_values("timestamp", kind="stable").reset_index(drop=True)
+
+
 def standardize_market(df: pd.DataFrame, *, asset_id: str, source: str, currency: str = "USD") -> pd.DataFrame:
     out = df.copy()
     if "date" not in out.columns:
