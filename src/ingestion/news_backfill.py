@@ -87,7 +87,10 @@ def run_backfill(providers: list[HistoricalNewsProvider], markets: list[tuple[st
             logger.info("%s: already stopped today (%s)", provider.name, entry["stopped"])
             continue
         first_call = True
-        for start, end in plan_windows(latest, earliest, provider.window_days):
+        provider_earliest = earliest
+        if provider.history_limit_days is not None:
+            provider_earliest = max(earliest, today - timedelta(days=provider.history_limit_days))
+        for start, end in plan_windows(latest, provider_earliest, provider.window_days):
             if entry["stopped"]:
                 break
             for market_id, asset_type in markets:

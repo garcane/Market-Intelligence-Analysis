@@ -180,8 +180,12 @@ def check_alpha_vantage_payload(payload: Any) -> None:
 
 
 class AlphaVantageMarketProvider(MarketDataProvider):
-    """Last-resort equity fallback. The free TIME_SERIES_DAILY endpoint returns
-    raw (unadjusted) prices; outputsize=full may require a paid plan."""
+    """Equity prices from TIME_SERIES_DAILY (raw, unadjusted).
+
+    Not in the default fallback chain. Probed 2026-09-26: outputsize=full is
+    premium, and compact returns only ~100 trading days, which the truncation
+    guard below refuses for any multi-year request. Usable with a paid plan,
+    or for short recent windows."""
     name = "alpha_vantage"
     url = "https://www.alphavantage.co/query"
     MAX_START_GAP_DAYS = 10
@@ -250,9 +254,8 @@ def _parse_marketaux_items(items: list, entity: str | None) -> pd.DataFrame:
     return standardize_news(pd.DataFrame(rows), source="marketaux")
 
 
-# Marketaux's crypto symbol format is unconfirmed; filled in once the probe
-# shows which format returns articles.
-MARKETAUX_CRYPTO_SYMBOLS: dict[str, str] = {}
+# Probed 2026-09-26: "CC:BTC" and "BTCUSD" return articles; "BTC" and "BTC-USD" don't.
+MARKETAUX_CRYPTO_SYMBOLS = {"BTC": "CC:BTC", "ETH": "CC:ETH", "SOL": "CC:SOL"}
 
 
 class MarketauxProvider(NewsDataProvider, HistoricalNewsProvider):
@@ -292,11 +295,16 @@ class MarketauxProvider(NewsDataProvider, HistoricalNewsProvider):
 
 class FinnhubNewsProvider(HistoricalNewsProvider):
     """Company news by date range. North American equities only; free plan is
-    rate-limited to 60 calls/minute."""
+    rate-limited to 60 calls/minute.
+
+    Probed 2026-09-26: responses cap at ~250 articles (a 7-day NVDA window came
+    back with only its last 3 days), hence 1-day windows. Nothing older than
+    about a year is returned, hence the history limit."""
     name = "finnhub"
     url = "https://finnhub.io/api/v1/company-news"
-    window_days = 7
+    window_days = 1
     daily_request_budget = None
+    history_limit_days = 365
     min_interval_seconds = 1.1
 
     def __init__(self, api_key: str | None = None, timeout: int = 30):

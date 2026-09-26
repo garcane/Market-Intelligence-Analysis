@@ -212,6 +212,6 @@ def test_chains_unchanged_without_keys(monkeypatch):
 def test_chains_with_all_keys(monkeypatch):
     for var in KEY_VARS:
         monkeypatch.setenv(var, SECRET)
-    assert _names(default_market_providers("equity")) == ["yahoo_finance", "tiingo", "alpha_vantage"]
+    assert _names(default_market_providers("equity")) == ["yahoo_finance", "tiingo"]
     assert _names(default_market_providers("crypto")) == ["yahoo_finance", "coincodex"]
     assert _names(default_historical_news_providers()) == ["finnhub", "alpha_vantage_news", "marketaux"]

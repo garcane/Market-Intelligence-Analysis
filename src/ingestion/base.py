@@ -60,6 +60,7 @@ class HistoricalNewsProvider(ABC):
     name: str
     window_days: int
     daily_request_budget: int | None = None
+    history_limit_days: int | None = None  # how far back the plan returns anything
 
     @abstractmethod
     def provider_symbol(self, market_id: str, asset_type: str) -> str | None:

@@ -9,7 +9,6 @@ import pandas as pd
 
 from src.ingestion.base import HistoricalNewsProvider, MarketDataProvider, NewsDataProvider
 from src.ingestion.providers import (
-    AlphaVantageMarketProvider,
     AlphaVantageNewsProvider,
     CoinCodexProvider,
     FinnhubNewsProvider,
@@ -61,12 +60,11 @@ def default_market_providers(asset_type: str | None = None) -> list[MarketDataPr
     # CoinCodex stays wired up as a fallback, not the primary source.
     if asset_type == "crypto":
         return [YahooFinanceProvider(), CoinCodexProvider()]
-    # Keyed fallbacks join the chain only when their key is set.
+    # Tiingo joins only when its key is set. Alpha Vantage prices are left out:
+    # its free plan can't return multi-year history (see AlphaVantageMarketProvider).
     providers: list[MarketDataProvider] = [YahooFinanceProvider()]
     if os.getenv("TIINGO_API_TOKEN"):
         providers.append(TiingoProvider())
-    if os.getenv("ALPHA_VANTAGE_API_KEY"):
-        providers.append(AlphaVantageMarketProvider())
     return providers
 
 

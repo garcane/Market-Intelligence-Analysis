@@ -84,8 +84,8 @@ Implemented providers (`src/ingestion/providers.py`):
 Keyed providers, each used only when its key is set in `.env` (see `.env.example`):
 
 - **Tiingo** (`TIINGO_API_TOKEN`) — equity price fallback after Yahoo. Tiingo's raw prices are split-adjusted on ingestion to match Yahoo's.
-- **Alpha Vantage** (`ALPHA_VANTAGE_API_KEY`) — last-resort equity price fallback, plus historical news, including crypto. It refuses truncated or unadjusted history instead of passing it on.
-- **Finnhub** (`FINNHUB_API_KEY`) — historical company news (equities).
+- **Alpha Vantage** (`ALPHA_VANTAGE_API_KEY`) — historical news for equities and crypto, reaching back at least two years. It is the main source of training-period news. It is *not* a price fallback: on the free plan, full price history is premium.
+- **Finnhub** (`FINNHUB_API_KEY`) — dense company news for equities, but the free plan reaches back only about a year. Its price history is premium.
 - **Marketaux** (`MARKETAUX_API_TOKEN`) — current and historical financial news.
 
 Run `python -m src.ingestion.probe_providers` to see what your keys' free plans actually allow; nothing in this list assumes a paid tier. Historical news is collected by the resumable backfill, `python -m src.ingestion.run_news_backfill`, which stays inside free daily quotas and continues where it stopped on each run.

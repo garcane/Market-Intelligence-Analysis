@@ -84,6 +84,17 @@ def test_quota_stop_keeps_progress_and_resumes_next_day(tmp_path):
     assert len(next_day.calls) == len(plan_windows(date(2024, 1, 31), date(2024, 1, 1), 7)) - 2
 
 
+def test_history_limit_skips_windows_the_plan_cannot_serve(tmp_path):
+    provider = FakeProvider()
+    provider.history_limit_days = 10
+    today = date.today()
+    run_backfill([provider], MARKETS, latest=today, earliest=today - timedelta(days=100),
+                 cache_root=tmp_path, **NO_SLEEP)
+    assert len(provider.calls) == 2  # only the two 7-day windows inside the 10-day limit
+    oldest = min(pd.Timestamp(start).date() for _, start in provider.calls)
+    assert oldest >= today - timedelta(days=10)
+
+
 def test_daily_budget_is_respected(tmp_path):
     provider = FakeProvider()
     provider.daily_request_budget = 2
