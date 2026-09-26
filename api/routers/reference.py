@@ -1,0 +1,82 @@
+"""Companies, AI supply-chain categories, thematic indices and AI events."""
+from __future__ import annotations
+
+import pandas as pd
+from fastapi import APIRouter, Depends
+
+from api import data
+from api.deps import get_settings
+from api.settings import Settings
+from src.analytics.indices import BENCHMARK_IDS, INDEX_MEMBERS, build_index_return, cumulative_return, rolling_correlation
+from src.analytics.market_stats import add_returns
+
+router = APIRouter(prefix="/api", tags=["reference"])
+
+
+@router.get("/companies")
+def companies() -> dict:
+    comp = data.companies()
+    cats = data.company_ai_categories()
+    ingested = set(data.market_ids())
+    by_company = cats.groupby("company_id")["ai_category"].apply(lambda s: sorted(set(s))).to_dict()
+    rows = comp.copy()
+    rows["ai_categories"] = rows["company_id"].map(lambda c: by_company.get(c, []))
+    rows["ingested"] = rows["ticker"].isin(ingested)
+    members = cats.merge(comp[["company_id", "company_name", "ticker", "country", "region"]],
+                         on="company_id", how="left")
+    return data.clean({
+        "companies": data.records(rows, date_cols=()),
+        "categories": sorted(cats["ai_category"].dropna().unique().tolist()),
+        "regions": sorted(comp["region"].dropna().unique().tolist()),
+        "category_members": data.records(members, date_cols=()),
+    })
+
+
+def _returns_wide(settings: Settings) -> pd.DataFrame:
+    series = {}
+    for market_id in data.market_ids():
+        df = data.market_prices(market_id, settings.excluded_sources)
+        if df is not None and len(df) > 1:
+            series[market_id] = add_returns(df[["date", "close"]]).set_index("date")["return_1d"]
+    return pd.DataFrame(series).sort_index()
+
+
+def _series(s: pd.Series) -> list[dict]:
+    s = s.dropna()
+    return [{"date": d.strftime("%Y-%m-%d"), "value": round(float(v), 6)} for d, v in s.items()]
+
+
+@router.get("/indices")
+def indices(settings: Settings = Depends(get_settings)) -> dict:
+    report = data.processed_json("indices_report.json") or {}
+    wide = _returns_wide(settings)
+    index_returns = {name: build_index_return(wide, members) for name, members in INDEX_MEMBERS.items()
+                     if any(m in wide.columns for m in members)}
+    for bench in BENCHMARK_IDS:
+        if bench in wide.columns:
+            index_returns[bench] = wide[bench]
+    cumulative = {name: _series(cumulative_return(r)) for name, r in index_returns.items()}
+    rolling_vs_spx = {}
+    if "SPX" in wide.columns:
+        for name in INDEX_MEMBERS:
+            if name in index_returns:
+                rolling_vs_spx[name] = _series(rolling_correlation(index_returns[name], wide["SPX"], window=30))
+    return data.clean({**report, "cumulative_return": cumulative, "rolling_corr_vs_spx": rolling_vs_spx})
+
+
+@router.get("/events")
+def events() -> dict:
+    ev = data.events()
+    report = data.processed_json("event_study_report.json") or {}
+    caar = data.processed_csv("event_study_caar.csv")
+    caar_rows = []
+    if caar is not None:
+        caar = caar.rename(columns={caar.columns[0]: "day"})
+        caar_rows = data.records(caar, date_cols=())
+    return data.clean({
+        "events": data.records(ev, date_cols=()) if not ev.empty else [],
+        "benchmark": report.get("benchmark"),
+        "window": report.get("window"),
+        "outcomes": report.get("events", []),
+        "caar": caar_rows,
+    })
