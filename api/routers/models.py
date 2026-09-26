@@ -78,6 +78,15 @@ def latest_predictions(h: int = Query(5, ge=1)) -> dict:
     return hit[1]
 
 
+def warm_predictions() -> None:
+    """Load the models and score once at startup: the first cold call takes
+    ~20s (joblib + XGBoost import), long enough for proxies to give up."""
+    try:
+        latest_predictions(h=5)
+    except Exception:  # noqa: BLE001 - best effort; the endpoint reports real errors
+        pass
+
+
 @router.get("/figures/{name}")
 def figure(name: str) -> FileResponse:
     path = data.FIGURES_DIR / name

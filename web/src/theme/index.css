@@ -1,0 +1,78 @@
+@import "tailwindcss";
+@import "@fontsource/figtree/400.css";
+@import "@fontsource/figtree/500.css";
+@import "@fontsource/figtree/600.css";
+
+/* Design tokens: adapted from the Miro-style system (white canvas, pill
+   controls, pastel feature cards, yellow accent) for dense financial data.
+   Figtree stands in for the licensed Roobert PRO. */
+@theme {
+  --font-sans: "Figtree", "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --color-canvas: #ffffff;
+  --color-surface: #f7f8fa;
+  --color-surface-soft: #fafbfc;
+  --color-hairline: #e0e2e8;
+  --color-hairline-soft: #eef0f3;
+  --color-hairline-strong: #c7cad5;
+
+  --color-ink: #1c1c1e;
+  --color-ink-deep: #050038;
+  --color-charcoal: #2c2c34;
+  --color-slate: #555a6a;
+  --color-steel: #6b6f7e;
+  --color-stone: #8e91a0;
+  --color-muted: #a5a8b5;
+
+  --color-brand-yellow: #ffd02f;
+  --color-yellow-light: #fff4c4;
+  --color-surface-yellow: #fff8e0;
+  --color-yellow-dark: #746019;
+  --color-brand-blue: #4262ff;
+  --color-blue-pressed: #2a41b6;
+  --color-lavender: #f5f3ff;
+  --color-coral-light: #ffc6c6;
+  --color-coral-dark: #600000;
+  --color-teal-light: #c3faf5;
+  --color-moss: #187574;
+  --color-rose-light: #fde0f0;
+  --color-orange-light: #ffe6cd;
+
+  /* finance additions: text shades pass WCAG AA on white */
+  --color-gain: #0a7f55;
+  --color-gain-fill: #00b473;
+  --color-gain-soft: #e3f7ee;
+  --color-loss: #c62828;
+  --color-loss-fill: #e5484d;
+  --color-loss-soft: #fdecec;
+
+  --radius-card: 16px;
+  --radius-feature: 28px;
+
+  --shadow-card: 0 4px 12px 0 rgba(5, 0, 56, 0.06);
+  --shadow-float: 0 16px 48px -8px rgba(5, 0, 56, 0.12);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-surface-soft font-sans text-ink antialiased;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  h1, h2, h3, h4 {
+    @apply font-medium text-ink;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand-blue);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

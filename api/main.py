@@ -5,6 +5,8 @@ Prod:  build web/ first (npm run build); this app then serves web/dist too.
 """
 from __future__ import annotations
 
+import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -25,7 +27,13 @@ WEB_DIST = ROOT_DIR / "web" / "dist"
 def create_app(mode: str | None = None, web_dist: Path = WEB_DIST) -> FastAPI:
     settings = load_settings(mode)
     public = settings.public
-    app = FastAPI(title="AI Market Intelligence API", version="1.0.0",
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        threading.Thread(target=models.warm_predictions, daemon=True).start()
+        yield
+
+    app = FastAPI(title="AI Market Intelligence API", version="1.0.0", lifespan=lifespan,
                   docs_url=None if public else "/api/docs", redoc_url=None, openapi_url=None if public else "/api/openapi.json")
     app.state.settings = settings
     app.state.local_hosts = set(LOCAL_HOSTS)
