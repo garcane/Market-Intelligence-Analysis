@@ -18,10 +18,19 @@ from src.ingestion.universe import build_market_universe, load_companies
 from src.ingestion.validate import validate_market_prices, validate_news
 from src.ingestion.news_backfill import collect_recent_news, ingested_market_symbols
 from src.ingestion.news_data import match_entities
-from src.ingestion.providers import YahooFinanceNewsProvider
+from src.ingestion.crypto_universe import refresh_crypto_universe
+from src.ingestion.providers import CoinCodexProvider, YahooFinanceNewsProvider
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
+
+
+def _providers_for(asset_type: str, symbol: str) -> list[MarketDataProvider]:
+    # A crypto row keeps its bare symbol when no Yahoo ticker matched
+    # CoinCodex's price (src.ingestion.crypto_universe), so CoinCodex prices it.
+    if asset_type == "crypto" and not symbol.endswith("-USD"):
+        return [CoinCodexProvider()]
+    return default_market_providers(asset_type)
 
 
 def ingest_market_universe(start: str, end: str, market_ids: list[str] | None = None,
@@ -33,7 +42,7 @@ def ingest_market_universe(start: str, end: str, market_ids: list[str] | None = 
     report = {"start": start, "end": end, "results": [], "provider_health": []}
     for _, row in universe.iterrows():
         market_id, symbol, asset_type = row["market_id"], row["symbol"], row["asset_type"]
-        provider_list = providers or default_market_providers(asset_type)
+        provider_list = providers or _providers_for(asset_type, symbol)
         entry = {"market_id": market_id, "symbol": symbol, "status": "UNKNOWN", "issues": []}
         df, health = fetch_market_with_fallback(provider_list, symbol, start, end)
         report["provider_health"].append({"market_id": market_id, "asset_type": asset_type, **health})
@@ -143,8 +152,16 @@ def main() -> None:
     parser.add_argument("--end", default=date.today().isoformat())
     parser.add_argument("--assets", default=None, help="comma-separated market_ids; default = full universe")
     parser.add_argument("--skip-news", action="store_true")
+    parser.add_argument("--no-crypto-refresh", action="store_true",
+                        help="keep the current crypto_assets.csv instead of re-ranking the top 10 from CoinCodex")
     parser.add_argument("--news-companies-limit", type=int, default=5)
     args = parser.parse_args()
+
+    if not args.no_crypto_refresh:
+        try:
+            refresh_crypto_universe()
+        except Exception as exc:  # noqa: BLE001 - keep the last good universe if CoinCodex is down
+            logger.warning("crypto ranking refresh failed, keeping current crypto_assets.csv: %s", exc)
 
     market_ids = args.assets.split(",") if args.assets else None
     market_report = ingest_market_universe(args.start, args.end, market_ids)

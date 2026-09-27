@@ -1,34 +1,67 @@
-company_id,company_name,ticker,is_public,exchange,country,region,industry,active_from,active_to
-openai,OpenAI,,false,,US,North America,AI Model Provider,2015-12-01,
-anthropic,Anthropic,,false,,US,North America,AI Model Provider,2021-01-01,
-xai,xAI,,false,,US,North America,AI Model Provider,2023-07-01,
-mistral,Mistral AI,,false,,FR,Europe,AI Model Provider,2023-04-01,
-deepseek,DeepSeek,,false,,CN,Asia,AI Model Provider,2023-07-01,
-moonshot,Moonshot AI,,false,,CN,Asia,AI Model Provider,2023-03-01,
-zhipu,Zhipu AI,,false,,CN,Asia,AI Model Provider,2019-06-01,
-minimax,MiniMax,,false,,CN,Asia,AI Model Provider,2021-12-01,
-coreweave,CoreWeave,CRWV,true,Nasdaq,US,North America,AI Cloud Infrastructure,2017-01-01,
-nebius,Nebius Group,NBIS,true,Nasdaq,NL,Europe,AI Cloud Infrastructure,2024-08-01,
-microsoft,Microsoft,MSFT,true,Nasdaq,US,North America,Cloud / Platform,1986-03-13,
-alphabet,Alphabet,GOOGL,true,Nasdaq,US,North America,Cloud / Platform,2004-08-19,
-meta,Meta Platforms,META,true,Nasdaq,US,North America,Consumer Platform,2012-05-18,
-amazon,Amazon,AMZN,true,Nasdaq,US,North America,Cloud / Platform,1997-05-15,
-apple,Apple,AAPL,true,Nasdaq,US,North America,Consumer Platform,1980-12-12,
-oracle,Oracle,ORCL,true,NYSE,US,North America,Cloud Infrastructure,1986-03-12,
-alibaba,Alibaba Group,BABA,true,NYSE,CN,Asia,Cloud / Platform,2014-09-19,
-baidu,Baidu,BIDU,true,Nasdaq,CN,Asia,AI Model Provider / Internet,2005-08-05,
-tencent,Tencent Holdings,TCEHY,true,OTC,CN,Asia,Internet / Platform,2004-06-16,
-nvidia,NVIDIA,NVDA,true,Nasdaq,US,North America,Semiconductors - Compute,1999-01-22,
-amd,Advanced Micro Devices,AMD,true,Nasdaq,US,North America,Semiconductors - Compute,1972-09-27,
-intel,Intel,INTC,true,Nasdaq,US,North America,Semiconductors - Compute,1971-10-13,
-broadcom,Broadcom,AVGO,true,Nasdaq,US,North America,Semiconductors - Networking/Silicon,2009-08-06,
-marvell,Marvell Technology,MRVL,true,Nasdaq,US,North America,Semiconductors - Networking/Silicon,2000-06-27,
-arista,Arista Networks,ANET,true,NYSE,US,North America,Networking,2014-06-06,
-tsmc,Taiwan Semiconductor Manufacturing,TSM,true,NYSE,TW,Asia,Semiconductor Manufacturing,1997-10-08,
-asml,ASML Holding,ASML,true,Nasdaq,NL,Europe,Semiconductor Manufacturing Equipment,1995-03-14,
-applied_materials,Applied Materials,AMAT,true,Nasdaq,US,North America,Semiconductor Manufacturing Equipment,1972-01-01,
-lam_research,Lam Research,LRCX,true,Nasdaq,US,North America,Semiconductor Manufacturing Equipment,1980-01-01,
-micron,Micron Technology,MU,true,Nasdaq,US,North America,Memory,1978-10-05,
-sk_hynix,SK Hynix,000660.KS,true,KRX,KR,Asia,Memory,1996-12-26,
-samsung,Samsung Electronics,005930.KS,true,KRX,KR,Asia,Memory / Electronics,1975-06-11,
-sandisk,SanDisk,SNDK,true,Nasdaq,US,North America,Memory,2025-02-21,
+company_id,company_name,ticker,is_public,exchange,country,region,industry,active_from,active_to,currency
+openai,OpenAI,,false,,US,North America,AI Model Provider,2015-12-01,,
+anthropic,Anthropic,,false,,US,North America,AI Model Provider,2021-01-01,,
+xai,xAI,,false,,US,North America,AI Model Provider,2023-07-01,,
+mistral,Mistral AI,,false,,FR,Europe,AI Model Provider,2023-04-01,,
+deepseek,DeepSeek,,false,,CN,Asia,AI Model Provider,2023-07-01,,
+moonshot,Moonshot AI,,false,,CN,Asia,AI Model Provider,2023-03-01,,
+zhipu,Zhipu AI,,false,,CN,Asia,AI Model Provider,2019-06-01,,
+minimax,MiniMax,,false,,CN,Asia,AI Model Provider,2021-12-01,,
+coreweave,CoreWeave,CRWV,true,Nasdaq,US,North America,AI Cloud Infrastructure,2017-01-01,,USD
+nebius,Nebius Group,NBIS,true,Nasdaq,NL,Europe,AI Cloud Infrastructure,2024-08-01,,USD
+microsoft,Microsoft,MSFT,true,Nasdaq,US,North America,Cloud / Platform,1986-03-13,,USD
+alphabet,Alphabet,GOOGL,true,Nasdaq,US,North America,Cloud / Platform,2004-08-19,,USD
+meta,Meta Platforms,META,true,Nasdaq,US,North America,Consumer Platform,2012-05-18,,USD
+amazon,Amazon,AMZN,true,Nasdaq,US,North America,Cloud / Platform,1997-05-15,,USD
+apple,Apple,AAPL,true,Nasdaq,US,North America,Consumer Platform,1980-12-12,,USD
+oracle,Oracle,ORCL,true,NYSE,US,North America,Cloud Infrastructure,1986-03-12,,USD
+alibaba,Alibaba Group,BABA,true,NYSE,CN,Asia,Cloud / Platform,2014-09-19,,USD
+baidu,Baidu,BIDU,true,Nasdaq,CN,Asia,AI Model Provider / Internet,2005-08-05,,USD
+tencent,Tencent Holdings,TCEHY,true,OTC,CN,Asia,Internet / Platform,2004-06-16,,USD
+nvidia,NVIDIA,NVDA,true,Nasdaq,US,North America,Semiconductors - Compute,1999-01-22,,USD
+amd,Advanced Micro Devices,AMD,true,Nasdaq,US,North America,Semiconductors - Compute,1972-09-27,,USD
+intel,Intel,INTC,true,Nasdaq,US,North America,Semiconductors - Compute,1971-10-13,,USD
+broadcom,Broadcom,AVGO,true,Nasdaq,US,North America,Semiconductors - Networking/Silicon,2009-08-06,,USD
+marvell,Marvell Technology,MRVL,true,Nasdaq,US,North America,Semiconductors - Networking/Silicon,2000-06-27,,USD
+arista,Arista Networks,ANET,true,NYSE,US,North America,Networking,2014-06-06,,USD
+tsmc,Taiwan Semiconductor Manufacturing,TSM,true,NYSE,TW,Asia,Semiconductor Manufacturing,1997-10-08,,USD
+asml,ASML Holding,ASML,true,Nasdaq,NL,Europe,Semiconductor Manufacturing Equipment,1995-03-14,,USD
+applied_materials,Applied Materials,AMAT,true,Nasdaq,US,North America,Semiconductor Manufacturing Equipment,1972-01-01,,USD
+lam_research,Lam Research,LRCX,true,Nasdaq,US,North America,Semiconductor Manufacturing Equipment,1980-01-01,,USD
+micron,Micron Technology,MU,true,Nasdaq,US,North America,Memory,1978-10-05,,USD
+sk_hynix,SK Hynix,000660.KS,true,KRX,KR,Asia,Memory,1996-12-26,,KRW
+samsung,Samsung Electronics,005930.KS,true,KRX,KR,Asia,Memory / Electronics,1975-06-11,,KRW
+sandisk,SanDisk,SNDK,true,Nasdaq,US,North America,Memory,2025-02-21,,USD
+arm,Arm Holdings,ARM,true,Nasdaq,GB,Europe,Semiconductors - IP / CPU,2023-09-14,,USD
+kla,KLA Corporation,KLAC,true,Nasdaq,US,North America,Semiconductor Manufacturing Equipment,1980-10-08,,USD
+ibm,IBM,IBM,true,NYSE,US,North America,Enterprise Software / Hybrid Cloud,1962-01-02,,USD
+servicenow,ServiceNow,NOW,true,NYSE,US,North America,Enterprise Software,2012-06-29,,USD
+palantir,Palantir Technologies,PLTR,true,Nasdaq,US,North America,Enterprise Software / AI Platforms,2020-09-30,,USD
+iren,IREN,IREN,true,Nasdaq,AU,Asia-Pacific,AI Cloud / Data Centres,2021-11-17,,USD
+terawulf,TeraWulf,WULF,true,Nasdaq,US,North America,Data Centres / HPC Hosting,2021-12-14,,USD
+cipher,Cipher Digital,CIFR,true,Nasdaq,US,North America,Data Centres / HPC Hosting,2021-08-30,,USD
+applied_digital,Applied Digital,APLD,true,Nasdaq,US,North America,Data Centres / HPC Hosting,2022-04-13,,USD
+equinix,Equinix,EQIX,true,Nasdaq,US,North America,Data Centre REIT,2000-08-11,,USD
+digital_realty,Digital Realty,DLR,true,NYSE,US,North America,Data Centre REIT,2004-10-29,,USD
+supermicro,Super Micro Computer,SMCI,true,Nasdaq,US,North America,AI Servers,2007-03-29,,USD
+cisco,Cisco Systems,CSCO,true,Nasdaq,US,North America,Networking,1990-02-16,,USD
+credo,Credo Technology,CRDO,true,Nasdaq,US,North America,Networking - Connectivity,2022-01-27,,USD
+coherent,Coherent,COHR,true,NYSE,US,North America,Networking - Optical,1987-10-02,,USD
+vertiv,Vertiv,VRT,true,NYSE,US,North America,Data Centre Power & Cooling,2018-08-02,,USD
+eaton,Eaton,ETN,true,NYSE,IE,Europe,Electrical Equipment,1972-06-01,,USD
+ge_vernova,GE Vernova,GEV,true,NYSE,US,North America,Power Generation Equipment,2024-03-27,,USD
+constellation,Constellation Energy,CEG,true,Nasdaq,US,North America,Nuclear Power Generation,2022-01-19,,USD
+vistra,Vistra,VST,true,NYSE,US,North America,Power Generation,2016-10-05,,USD
+bloom,Bloom Energy,BE,true,NYSE,US,North America,Fuel Cells / On-site Power,2018-07-25,,USD
+oklo,Oklo,OKLO,true,NYSE,US,North America,Advanced Nuclear (SMR),2024-05-10,,USD
+nuscale,NuScale Power,SMR,true,NYSE,US,North America,Advanced Nuclear (SMR),2022-05-03,,USD
+cameco,Cameco,CCJ,true,NYSE,CA,North America,Uranium Mining,1996-03-14,,USD
+centrus,Centrus Energy,LEU,true,NYSE,US,North America,Nuclear Fuel / Enrichment,1998-07-23,,USD
+nextera,NextEra Energy,NEE,true,NYSE,US,North America,Renewable Utility,1973-02-21,,USD
+first_solar,First Solar,FSLR,true,Nasdaq,US,North America,Solar,2006-11-17,,USD
+amprius,Amprius Technologies,AMPX,true,NYSE,US,North America,Energy Storage - Batteries,2022-09-15,,USD
+eos,Eos Energy Enterprises,EOSE,true,Nasdaq,US,North America,Energy Storage - Grid,2020-11-17,,USD
+fluence,Fluence Energy,FLNC,true,Nasdaq,US,North America,Energy Storage - Grid,2021-10-28,,USD
+exxon,ExxonMobil,XOM,true,NYSE,US,North America,Oil & Gas,1962-01-02,,USD
+chevron,Chevron,CVX,true,NYSE,US,North America,Oil & Gas,1962-01-02,,USD
+shell,Shell,SHEL,true,NYSE,GB,Europe,Oil & Gas,2022-01-31,,USD

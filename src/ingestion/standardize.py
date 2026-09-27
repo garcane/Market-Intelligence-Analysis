@@ -56,6 +56,23 @@ def standardize_market(df: pd.DataFrame, *, asset_id: str, source: str, currency
     return out[[c for c in MARKET_COLUMNS if c in out.columns]]
 
 
+def repair_ohlc_bounds(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    """Widen high/low to contain open and close. Yahoo occasionally returns a
+    row whose close sits just outside that day's high/low (seen on KRX tickers
+    and on crypto's still-forming current-day candle), which would otherwise
+    fail validate_market_prices and drop the whole asset. Returns the repaired
+    frame and the number of rows changed."""
+    if not {"open", "high", "low", "close"} <= set(df.columns):
+        return df, 0
+    out = df.copy()
+    body_high = out[["open", "close"]].max(axis=1)
+    body_low = out[["open", "close"]].min(axis=1)
+    bad = (out["high"] < body_high) | (out["low"] > body_low)
+    out["high"] = out["high"].where(out["high"] >= body_high, body_high)
+    out["low"] = out["low"].where(out["low"] <= body_low, body_low)
+    return out, int(bad.sum())
+
+
 def standardize_news(df: pd.DataFrame, *, source: str = "unknown") -> pd.DataFrame:
     out = df.copy()
     rename = {"news_id": "article_id", "timestamp": "published_at", "source_id": "publisher"}

@@ -1,0 +1,88 @@
+entity_id,theme,segment,subsegment,role_notes
+nvidia,AI Supply Chain,Semiconductors,Compute,Dominant AI training/inference GPU supplier
+amd,AI Supply Chain,Semiconductors,Compute,MI-series accelerators; EPYC CPUs
+intel,AI Supply Chain,Semiconductors,Compute,Gaudi accelerators; x86 CPUs; foundry ambitions
+arm,AI Supply Chain,Semiconductors,IP / CPU,CPU architecture behind most data-centre Arm chips (Grace; Graviton; Axion)
+broadcom,AI Supply Chain,Semiconductors,Custom Silicon,Custom AI ASICs for hyperscalers (TPU; MTIA; OpenAI)
+marvell,AI Supply Chain,Semiconductors,Custom Silicon,Custom AI silicon and data-centre interconnect
+tsmc,AI Supply Chain,Semiconductors,Foundry,Primary foundry for NVIDIA/AMD/Apple/Broadcom AI chips
+asml,AI Supply Chain,Semiconductors,Equipment,EUV lithography - critical AI-chip manufacturing bottleneck
+applied_materials,AI Supply Chain,Semiconductors,Equipment,Semiconductor fabrication equipment
+lam_research,AI Supply Chain,Semiconductors,Equipment,Etch and deposition equipment
+kla,AI Supply Chain,Semiconductors,Equipment,Process control and inspection equipment
+micron,AI Supply Chain,Semiconductors,Memory & Storage,High-Bandwidth Memory for AI accelerators
+sk_hynix,AI Supply Chain,Semiconductors,Memory & Storage,Leading HBM supplier for AI accelerators
+samsung,AI Supply Chain,Semiconductors,Memory & Storage,HBM; DRAM and NAND supplier
+sandisk,AI Supply Chain,Semiconductors,Memory & Storage,NAND flash / AI storage (post Western Digital spin-off)
+microsoft,AI Supply Chain,Hyperscalers,,Azure; Maia custom silicon; largest OpenAI partner
+amazon,AI Supply Chain,Hyperscalers,,AWS; Trainium/Inferentia custom silicon; Anthropic investor
+alphabet,AI Supply Chain,Hyperscalers,,Google Cloud; TPU custom silicon
+meta,AI Supply Chain,Hyperscalers,,Among the largest AI capex spenders (own-use data centres)
+oracle,AI Supply Chain,Hyperscalers,,OCI GPU capacity; Stargate partner
+alibaba,AI Supply Chain,Hyperscalers,,Alibaba Cloud - largest Chinese hyperscaler
+coreweave,AI Supply Chain,Neoclouds,,NVIDIA-GPU-centric AI compute cloud
+nebius,AI Supply Chain,Neoclouds,,NVIDIA-GPU-centric AI compute cloud (ex-Yandex international)
+iren,AI Supply Chain,Neoclouds,,Bitcoin miner turned GPU cloud; owns its data-centre sites and power
+iren,AI Supply Chain,Data Centres,HPC Hosting,Owns powered data-centre campuses (Texas; British Columbia)
+terawulf,AI Supply Chain,Data Centres,HPC Hosting,Bitcoin miner converting capacity to AI/HPC hosting (Fluidstack; Google backstop)
+cipher,AI Supply Chain,Data Centres,HPC Hosting,Formerly Cipher Mining; converting sites to AI/HPC hosting
+applied_digital,AI Supply Chain,Data Centres,HPC Hosting,Purpose-built AI data-centre campuses (CoreWeave leases)
+equinix,AI Supply Chain,Data Centres,Colocation REIT,Largest global colocation / interconnection REIT
+digital_realty,AI Supply Chain,Data Centres,Colocation REIT,Wholesale data-centre REIT
+supermicro,AI Supply Chain,Data Centres,Servers,AI GPU servers and liquid-cooled racks
+vertiv,AI Supply Chain,Power,Power & Cooling Equipment,Data-centre power distribution and liquid cooling
+eaton,AI Supply Chain,Power,Electrical Equipment,Switchgear; UPS; power distribution for data centres
+ge_vernova,AI Supply Chain,Power,Generation Equipment,Gas turbines and grid equipment for new data-centre load
+constellation,AI Supply Chain,Power,Generation,Largest US nuclear fleet; Microsoft and Meta nuclear PPAs
+vistra,AI Supply Chain,Power,Generation,Gas and nuclear generation selling power to data centres
+bloom,AI Supply Chain,Power,On-site Power,Fuel cells for behind-the-meter data-centre power
+broadcom,AI Supply Chain,Networking,Switching Silicon,Tomahawk/Jericho Ethernet switch silicon
+marvell,AI Supply Chain,Networking,Optical / Interconnect,Electro-optics DSPs for AI cluster interconnect
+arista,AI Supply Chain,Networking,Switching,High-performance data-centre switching for AI clusters
+cisco,AI Supply Chain,Networking,Switching,Enterprise and AI data-centre networking
+credo,AI Supply Chain,Networking,Connectivity,Active electrical cables and SerDes for AI racks
+coherent,AI Supply Chain,Networking,Optical / Interconnect,Optical transceivers for AI data centres
+openai,AI Models,Frontier Labs,Western,GPT model family; primary partner Microsoft
+anthropic,AI Models,Frontier Labs,Western,Claude model family; backed by Amazon and Google
+xai,AI Models,Frontier Labs,Western,Grok model family
+mistral,AI Models,Frontier Labs,Western,Open-weight and hosted Mistral/Le Chat models
+alphabet,AI Models,Frontier Labs,Western,Google DeepMind - Gemini model family
+meta,AI Models,Frontier Labs,Western,Llama model family (open weight)
+microsoft,AI Models,Frontier Labs,Western,Azure OpenAI Service; Copilot; MAI models
+deepseek,AI Models,Frontier Labs,Chinese,DeepSeek model family
+moonshot,AI Models,Frontier Labs,Chinese,Kimi model family
+zhipu,AI Models,Frontier Labs,Chinese,GLM model family
+minimax,AI Models,Frontier Labs,Chinese,MiniMax model family
+alibaba,AI Models,Frontier Labs,Chinese,Qwen model family
+baidu,AI Models,Frontier Labs,Chinese,Ernie model family
+tencent,AI Models,Frontier Labs,Chinese,Hunyuan model family
+servicenow,AI Applications,Enterprise Software,,AI agents for IT/HR/customer workflows (Now Assist)
+ibm,AI Applications,Enterprise Software,,watsonx; Red Hat hybrid cloud; quantum
+palantir,AI Applications,Enterprise Software,,AIP platform for enterprise and government AI deployment
+oracle,AI Applications,Enterprise Software,,Database and enterprise applications
+microsoft,AI Applications,Enterprise Software,,Office / Copilot / GitHub Copilot
+apple,AI Applications,Consumer Platforms,,Apple Intelligence; on-device AI
+alphabet,AI Applications,Consumer Platforms,,Search; Android; YouTube
+meta,AI Applications,Consumer Platforms,,Facebook / Instagram / WhatsApp / Meta AI
+amazon,AI Applications,Consumer Platforms,,Amazon retail; Alexa+
+tencent,AI Applications,Consumer Platforms,,WeChat; gaming
+baidu,AI Applications,Consumer Platforms,,Search; Apollo autonomous driving
+constellation,Energy,Nuclear & Uranium,Nuclear Generation,Largest US nuclear operator
+oklo,Energy,Nuclear & Uranium,Advanced Nuclear,Small modular (fast) reactors; data-centre power deals
+nuscale,Energy,Nuclear & Uranium,Advanced Nuclear,NRC-approved small modular reactor design
+cameco,Energy,Nuclear & Uranium,Uranium,One of the largest uranium producers; Westinghouse co-owner
+centrus,Energy,Nuclear & Uranium,Nuclear Fuel,HALEU / low-enriched uranium enrichment
+wisdomtree_nuclear,Energy,Nuclear & Uranium,ETF,Uranium miners and nuclear energy basket
+nextera,Energy,Clean Energy,Renewable Utility,Largest US wind and solar developer
+first_solar,Energy,Clean Energy,Solar,US thin-film solar module manufacturer
+ishares_clean_energy,Energy,Clean Energy,ETF,Global clean-energy basket
+amprius,Energy,Energy Storage,Batteries,High-energy-density silicon-anode lithium-ion batteries
+eos,Energy,Energy Storage,Grid Storage,Zinc-based long-duration grid storage
+fluence,Energy,Energy Storage,Grid Storage,Grid-scale battery storage systems (Siemens / AES)
+vistra,Energy,Power Generation,,Gas; nuclear and battery generation fleet
+ge_vernova,Energy,Power Generation,,Gas turbines; wind; grid equipment
+bloom,Energy,Power Generation,,Solid-oxide fuel cells
+exxon,Energy,Oil & Gas,,Integrated oil major
+chevron,Energy,Oil & Gas,,Integrated oil major
+shell,Energy,Oil & Gas,,Integrated oil and LNG major
+ishares_world_energy,Energy,Oil & Gas,ETF,MSCI World energy sector basket

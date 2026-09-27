@@ -6,6 +6,7 @@ Keyed providers read their key from the environment (`.env`, see
 """
 from __future__ import annotations
 
+import logging
 import os
 import re
 from typing import Any
@@ -26,7 +27,9 @@ from src.ingestion.base import (
 )
 from src.ingestion.market_data import fetch_market_prices
 from src.ingestion.news_data import fetch_headlines
-from src.ingestion.standardize import standardize_market, standardize_news
+from src.ingestion.standardize import repair_ohlc_bounds, standardize_market, standardize_news
+
+logger = logging.getLogger(__name__)
 
 USER_AGENT = {"User-Agent": "AI-Market-Intelligence/1.0"}
 PRICE_COLUMNS = ["open", "high", "low", "close"]
@@ -70,7 +73,10 @@ class YahooFinanceProvider(MarketDataProvider):
     name = "yahoo_finance"
 
     def fetch_prices(self, symbol: str, start: str, end: str) -> pd.DataFrame:
-        return standardize_market(fetch_market_prices(symbol, start, end), asset_id=symbol, source=self.name)
+        df, repaired = repair_ohlc_bounds(fetch_market_prices(symbol, start, end))
+        if repaired:
+            logger.warning("%s: widened high/low on %d row(s) where close/open fell outside them", symbol, repaired)
+        return standardize_market(df, asset_id=symbol, source=self.name)
 
 
 class CoinCodexProvider(MarketDataProvider):

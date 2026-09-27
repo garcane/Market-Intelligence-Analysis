@@ -46,8 +46,10 @@ def main() -> None:
     plt.close(fig)
     logger.info("sentiment-over-time: %d days with matched news coverage", len(daily))
 
-    # --- sentiment by sector (join matched_company_id -> ai_category) ---
-    categories = pd.read_csv(REFERENCE_DIR / "company_ai_categories.csv")[["company_id", "ai_category"]]
+    # --- sentiment by sector (join matched_company_id -> theme segment) ---
+    themes = pd.read_csv(REFERENCE_DIR / "themes.csv")
+    categories = pd.DataFrame({"company_id": themes["entity_id"],
+                               "ai_category": themes["theme"] + " / " + themes["segment"]})
     scored = sentiment_df[sentiment_df["sentiment_model"] == "vader"]
     merged = scored.merge(news_df[["news_id", "matched_company_id"]], on="news_id", how="left")
     merged = merged.merge(categories, left_on="matched_company_id", right_on="company_id", how="left")
@@ -60,7 +62,7 @@ def main() -> None:
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.barh(by_sector["ai_category"], by_sector["mean_sentiment"])
         ax.axvline(0, color="gray", linewidth=0.5)
-        ax.set_title("Mean VADER Sentiment by AI Category")
+        ax.set_title("Mean VADER Sentiment by Theme Segment")
         ax.set_xlabel("Mean sentiment score")
         plt.tight_layout()
         plt.savefig(FIGURES_DIR / "13_sentiment_by_sector.png", dpi=110)

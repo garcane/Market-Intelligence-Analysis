@@ -9,15 +9,16 @@ import pandas as pd
 
 RISK_FREE_RATE_ANNUAL = 0.0  # simplifying assumption, documented in INDICES.md
 
-# Membership drawn directly from data/reference/{companies,company_ai_categories}.csv
-# (Stage 1), restricted to what's actually been ingested (data/raw/market_prices/).
+# Membership drawn from data/reference/{companies,themes}.csv, restricted to
+# what's actually been ingested (data/raw/market_prices/).
 INDEX_MEMBERS = {
     "ai_infrastructure_index": ["NVDA", "AMD", "AVGO", "TSM", "MU"],
     "ai_platform_index": ["MSFT", "AMZN", "GOOGL", "META", "AAPL", "ORCL"],
     "ai_model_provider_index": ["MSFT", "GOOGL", "META"],
+    "ai_power_index": ["CEG", "VST", "GEV", "VRT", "ETN"],
 }
 
-BENCHMARK_IDS = ["SPX", "NASDAQ", "SOXX", "BTC", "ETH"]
+BENCHMARK_IDS = ["SPX", "NDX", "SOXX", "BTC", "ETH"]
 
 
 def build_index_return(returns_wide: pd.DataFrame, members: list[str]) -> pd.Series:

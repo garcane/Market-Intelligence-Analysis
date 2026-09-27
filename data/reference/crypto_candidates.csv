@@ -1,0 +1,36 @@
+symbol,asset_name,category,pinned
+BTC,Bitcoin,Store of Value / Layer 1,true
+ETH,Ethereum,Smart Contract Platform / Layer 1,true
+SOL,Solana,Smart Contract Platform / Layer 1,true
+USDT,Tether,Stablecoin,false
+USDC,USD Coin,Stablecoin,false
+XRP,XRP,Payments / Layer 1,false
+BNB,BNB,Exchange Token / Smart Contract Platform,false
+TRX,TRON,Payments / Smart Contract Platform,false
+DOGE,Dogecoin,Meme / Payments,false
+ADA,Cardano,Smart Contract Platform / Layer 1,false
+ZEC,Zcash,Privacy / Payments,false
+XMR,Monero,Privacy / Payments,false
+LINK,Chainlink,Oracle / Infrastructure,false
+HYPE,Hyperliquid,DeFi / Exchange,false
+XLM,Stellar,Payments / Layer 1,false
+BCH,Bitcoin Cash,Payments / Layer 1,false
+LTC,Litecoin,Payments / Layer 1,false
+AVAX,Avalanche,Smart Contract Platform / Layer 1,false
+SUI,Sui,Smart Contract Platform / Layer 1,false
+TON,Toncoin,Smart Contract Platform / Layer 1,false
+HBAR,Hedera,Smart Contract Platform / Layer 1,false
+LEO,UNUS SED LEO,Exchange Token,false
+DAI,Dai,Stablecoin,false
+USDE,Ethena USDe,Stablecoin,false
+SHIB,Shiba Inu,Meme,false
+DOT,Polkadot,Smart Contract Platform / Layer 0,false
+UNI,Uniswap,DeFi / Exchange,false
+NEAR,NEAR Protocol,Smart Contract Platform / Layer 1,false
+CRO,Cronos,Exchange Token,false
+ONDO,Ondo,Real-World Assets,false
+PEPE,Pepe,Meme,false
+ICP,Internet Computer,Smart Contract Platform / Layer 1,false
+ETC,Ethereum Classic,Smart Contract Platform / Layer 1,false
+APT,Aptos,Smart Contract Platform / Layer 1,false
+WLFI,World Liberty Financial,DeFi,false

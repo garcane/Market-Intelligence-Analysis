@@ -1,0 +1,9 @@
+fund_id,fund_name,ticker,symbol,asset_class,role,exchange,currency,issuer,notes
+sp500,S&P 500,SPX,^GSPC,index,benchmark,S&P,USD,S&P Dow Jones Indices,US large-cap benchmark; event-study benchmark
+nasdaq100,Nasdaq-100,NDX,^NDX,index,benchmark,Nasdaq,USD,Nasdaq,Tech-heavy US large-cap benchmark
+vanguard_all_world,Vanguard FTSE All-World UCITS ETF,VWRL,VWRL.L,etf,benchmark,LSE,GBP,Vanguard,Global developed + emerging equity benchmark (distributing; GBP line)
+vanguard_em,Vanguard FTSE Emerging Markets UCITS ETF,VFEM,VFEM.L,etf,benchmark,LSE,GBP,Vanguard,Emerging-markets equity benchmark (distributing; GBP line)
+ishares_semis,iShares Semiconductor ETF,SOXX,SOXX,etf,benchmark,Nasdaq,USD,iShares,Semiconductor sector benchmark used for AI-index betas
+wisdomtree_nuclear,WisdomTree Uranium and Nuclear Energy UCITS ETF,NCLR,NCLR.L,etf,thematic,LSE,USD,WisdomTree,USD line; the same fund also trades in GBP as NCLP
+ishares_clean_energy,iShares Global Clean Energy Transition UCITS ETF,INRG,INRG.MI,etf,thematic,Borsa Italiana,EUR,iShares,Milan (EUR) line: Yahoo's London INRG.L series has a block of stale zero-volume rows in Apr-May 2025
+ishares_world_energy,iShares MSCI World Energy Sector UCITS ETF,WENS,WENS.L,etf,thematic,LSE,GBP,iShares,Traditional energy (oil & gas) across developed markets

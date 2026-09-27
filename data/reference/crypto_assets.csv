@@ -1,11 +1,11 @@
-asset_id,asset_name,symbol,category,launch_date,notes
-btc,Bitcoin,BTC,Store of Value / Layer 1,2009-01-03,Market benchmark for crypto beta comparisons
-eth,Ethereum,ETH,Smart Contract Platform / Layer 1,2015-07-30,Existing LSTM forecaster in repo targets this asset
-sol,Solana,SOL,Smart Contract Platform / Layer 1,2020-03-24,High-throughput Layer 1 with strong ecosystem activity
-xrp,XRP,XRP,Payments / Layer 1,2013-01-01,Existing sentiment-scraper notebook targets this asset
-bnb,Binance Coin,BNB,Exchange Token / Smart Contract Platform,2017-07-25,Large-cap exchange ecosystem asset with broad market influence
-ada,Cardano,ADA,Smart Contract Platform / Layer 1,2017-09-29,Research-heavy Layer 1 with liquidity and long-term track record
-doge,Dogecoin,DOGE,Meme / Payments,2013-12-06,High-liquidity meme coin and social-sentiment benchmark
-trx,TRON,TRX,Payments / Smart Contract Platform,2017-09-13,High-throughput transaction network with substantial market cap
-link,Chainlink,LINK,Oracle / Infrastructure,2017-09-19,Key oracle asset used in decentralized finance and data feeds
-avax,Avalanche,AVAX,Smart Contract Platform / Layer 1,2020-09-22,Subnets-based Layer 1 with strong DeFi participation
+asset_id,asset_name,symbol,yf_symbol,category,rank,market_cap_usd,price_usd,pinned,as_of,rank_source
+btc,Bitcoin,BTC,BTC-USD,Store of Value / Layer 1,1,1694564293516.0,84349.75,True,2026-09-27,coincodex_history
+eth,Ethereum,ETH,ETH-USD,Smart Contract Platform / Layer 1,2,328935457627.0,2694.3867,True,2026-09-27,coincodex_history
+usdt,Tether,USDT,USDT-USD,Stablecoin,3,183772861267.0,0.99975,False,2026-09-27,coincodex_history
+bnb,BNB,BNB,BNB-USD,Exchange Token / Smart Contract Platform,4,102917979116.0,772.8909,False,2026-09-27,coincodex_history
+xrp,XRP,XRP,XRP-USD,Payments / Layer 1,5,96167427052.0,1.5293994196611695,False,2026-09-27,coincodex_history
+usdc,USD Coin,USDC,USDC-USD,Stablecoin,6,75293473480.0,0.9999,False,2026-09-27,coincodex_history
+sol,Solana,SOL,SOL-USD,Smart Contract Platform / Layer 1,7,71320438714.0,121.3526,True,2026-09-27,coincodex_history
+trx,TRON,TRX,TRX-USD,Payments / Smart Contract Platform,8,31747387489.0,0.334539854512037,False,2026-09-27,coincodex_history
+zec,Zcash,ZEC,ZEC-USD,Privacy / Payments,9,27897079475.0,1651.8698,False,2026-09-27,coincodex_history
+doge,Dogecoin,DOGE,DOGE-USD,Meme / Payments,10,16609129024.0,0.09668221573303319,False,2026-09-27,coincodex_history

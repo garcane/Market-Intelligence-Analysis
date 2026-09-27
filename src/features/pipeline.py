@@ -26,26 +26,40 @@ from src.ingestion.universe import (
     build_market_universe,
     entity_to_market_map,
     load_companies,
-    load_company_ai_categories,
+    load_themes,
 )
 
 SECTOR_FEATURE_COLUMNS = ["sector_return", "relative_sector_performance"]
 
 
+AI_THEMES = ("AI Supply Chain", "AI Models", "AI Applications")
+
+
+def _company_market_ids(universe: pd.DataFrame) -> dict[str, str]:
+    return {row.company_id: row.market_id for row in universe.itertuples()
+            if row.asset_type == "equity" and pd.notna(row.company_id)}
+
+
 def build_sector_members(universe: pd.DataFrame) -> dict[str, list[str]]:
-    """{ai_category: [market_id, ...]} for equity market_ids only."""
-    company_id_to_market_id = {
-        row.company_id: row.market_id for row in universe.itertuples()
-        if row.asset_type == "equity" and pd.notna(row.company_id)
-    }
-    categories = load_company_ai_categories()
+    """{"theme / segment": [market_id, ...]} for equity market_ids only
+    (data/reference/themes.csv), e.g. "AI Supply Chain / Semiconductors"."""
+    company_id_to_market_id = _company_market_ids(universe)
     sector_members: dict[str, list[str]] = {}
-    for _, row in categories.iterrows():
-        market_id = company_id_to_market_id.get(row["company_id"])
+    for _, row in load_themes().iterrows():
+        market_id = company_id_to_market_id.get(row["entity_id"])
         if market_id is None:
             continue
-        sector_members.setdefault(row["ai_category"], []).append(market_id)
+        sector_members.setdefault(f"{row['theme']} / {row['segment']}", []).append(market_id)
     return sector_members
+
+
+def ai_equity_market_ids(universe: pd.DataFrame) -> list[str]:
+    """Stocks tagged with an AI theme. Energy-only names (oil majors, solar)
+    are tracked stocks too but are kept out of the AI index feature."""
+    company_id_to_market_id = _company_market_ids(universe)
+    themes = load_themes()
+    ai_entities = themes.loc[themes["theme"].isin(AI_THEMES), "entity_id"]
+    return sorted({company_id_to_market_id[e] for e in ai_entities if e in company_id_to_market_id})
 
 
 def build_all_features(market_prices: dict[str, pd.DataFrame],
@@ -56,7 +70,7 @@ def build_all_features(market_prices: dict[str, pd.DataFrame],
     data provided) sentiment features.
     """
     universe = build_market_universe()
-    equity_market_ids = universe[universe["asset_type"] == "equity"]["market_id"].tolist()
+    equity_market_ids = ai_equity_market_ids(universe)
     market_id_to_entity = {v: k for k, v in entity_to_market_map().items()}
     sector_members = build_sector_members(universe)
 
