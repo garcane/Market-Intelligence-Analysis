@@ -133,8 +133,8 @@ Every key is optional: the pipeline runs end to end with none set. Run `python -
 **Prerequisites:** Python 3.13 and Node.js 20 or later.
 
 ```bash
-git clone https://github.com/garcane/-Market-Intelligence-Analysis.git
-cd -Market-Intelligence-Analysis
+git clone https://github.com/garcane/Market-Intelligence-Analysis.git
+cd Market-Intelligence-Analysis
 
 python -m venv .venv
 source .venv/bin/activate            # Windows: .venv\Scripts\Activate.ps1
