@@ -210,20 +210,22 @@ Both ship a snapshot of the pipeline's outputs. To refresh the demo, run the pip
 
 ## Model results
 
-The task is to predict whether an asset's **5-day forward return exceeds +2%**. The data has 2,826 training rows and 981 validation rows, with an embargo between them. Metrics are on the validation split:
+The task is to predict whether an asset's **5-day forward return exceeds +2%**. The data has 3,345 training rows and 981 validation rows, with an embargo between them. Metrics are on the validation split:
 
 | Model | PR-AUC | ROC-AUC |
 |---|---:|---:|
-| XGBoost | **0.409** | 0.579 |
-| Random Forest | 0.408 | 0.563 |
-| HistGradientBoosting | 0.400 | 0.579 |
-| Logistic Regression | 0.397 | **0.583** |
+| HistGradientBoosting | **0.422** | **0.598** |
+| Random Forest | 0.421 | 0.583 |
+| XGBoost | 0.414 | 0.587 |
+| Logistic Regression | 0.395 | 0.576 |
 | Majority-class baseline | 0.353 | 0.500 |
 | Random baseline | 0.339 | 0.481 |
 
+The web app draws these as interactive ROC and precision-recall curves, and recomputes each model's confusion matrix live as you move the decision threshold.
+
 What the numbers do and don't show:
 
-- **The lift is modest and real, but the ranking isn't settled.** Tree ensembles beat the baselines. The gap between XGBoost and Random Forest, though, is smaller than seed-to-seed noise ([`ROBUSTNESS.md`](ROBUSTNESS.md)).
+- **The lift is modest and real, but the ranking isn't settled.** Tree ensembles beat the baselines. The top two models, though, are only 0.001 PR-AUC apart, less than seed-to-seed noise ([`ROBUSTNESS.md`](ROBUSTNESS.md)).
 - **Sentiment adds nothing measurable yet.** Sentiment covers under 1% of training rows, so its effect sits inside seed noise ([`ABLATION_STUDY.md`](ABLATION_STUDY.md)).
 - **Suspiciously good results are diagnosed, not celebrated.** A high AUC triggers a leakage check, and overfit early tree models were regularised ([`MODELS.md`](MODELS.md)).
 

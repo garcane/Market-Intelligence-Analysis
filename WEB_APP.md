@@ -88,7 +88,7 @@ seconds.
 | AI events | `/api/events` | Curated and news-detected AI events with type/source filters and search; CAAR chart and per-event abnormal returns |
 | Sentiment | `/api/sentiment/summary?model&labels` | The label filter applies to every chart. It was never applied in the Streamlit app. Also shows news coverage by split. |
 | News feed | `/api/news?q&entity&source&label&from&to&page` | New page |
-| Model performance | `/api/models/report`, `/api/figures/{name}` | Validation split only |
+| Model performance | `/api/models/report`, `/api/models/validation-predictions` | Validation split only. Interactive PR and ROC curves and threshold-driven confusion matrices, computed in the browser from per-row validation predictions (`python -m src.models.validation_predictions`, also written by training). `?curve=roc&t=0.4` opens a tab at a threshold |
 | Explainability | `/api/models/explainability` | Permutation, SHAP and built-in importance |
 | Predictions | `/api/predictions/latest` | New page, described below |
 | Pipeline | `/api/pipeline/*` | New page. Local mode only. |
@@ -135,3 +135,7 @@ The rebuild surfaced two pipeline bugs, logged in `FAILURE_LOG.md`:
   crypto rows left no complete 30-day window.
 - `requirements.txt` pins versions older than those that trained the saved
   models.
+
+## Theme
+
+A light/dark toggle sits at the bottom of the sidebar (in the header on mobile). Light is the default; the choice is saved in the browser, and `?theme=dark` or `?theme=light` sets it from a link. Dark mode redefines the colour tokens in `web/src/theme/index.css` (`:root[data-theme="dark"]`), so components need no per-class dark variants. Charts swap their neutral colours through `darken()` in `web/src/lib/chartTheme.ts`.

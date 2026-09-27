@@ -1,6 +1,7 @@
 import { createColumnHelper } from "@tanstack/react-table";
 import { AlertTriangle, ShieldCheck } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { useModelReport, useValidationPredictions } from "../api/client";
 import type { Metrics, ModelReport, ValidationPredictions } from "../api/types";
@@ -75,11 +76,20 @@ function ConfusionMatrix({ name, cm, fixed }: { name: string; cm: Confusion; fix
 }
 
 type Figure = "pr" | "roc" | "confusion";
+const FIGURES: Figure[] = ["pr", "roc", "confusion"];
+const DEFAULT_THRESHOLD = 0.5;
 
 /** PR / ROC curves and threshold-driven confusion matrices, all from per-row validation predictions. */
 function Curves({ preds, report }: { preds: ValidationPredictions; report: ModelReport }) {
-  const [figure, setFigure] = useState<Figure>("pr");
-  const [threshold, setThreshold] = useState(0.5);
+  // tab and threshold live in the URL (?curve=roc&t=0.4) so a view can be shared
+  const [params, setParams] = useSearchParams();
+  const figure = FIGURES.find((f) => f === params.get("curve")) ?? "pr";
+  const parsed = Number(params.get("t"));
+  const threshold = Number.isFinite(parsed) && parsed >= 0.05 && parsed <= 0.95 && params.has("t") ? parsed : DEFAULT_THRESHOLD;
+  const setParam = (key: string, value: string | null) =>
+    setParams((p) => { if (value === null) p.delete(key); else p.set(key, value); return p; }, { replace: true });
+  const setFigure = (f: Figure) => setParam("curve", f === "pr" ? null : f);
+  const setThreshold = (t: number) => setParam("t", t === DEFAULT_THRESHOLD ? null : t.toFixed(2));
 
   // leaderboard order, then any other exported model
   const names = useMemo(
@@ -117,7 +127,7 @@ function Curves({ preds, report }: { preds: ValidationPredictions; report: Model
         </label>
         <input id="threshold" type="range" min={0.05} max={0.95} step={0.01} value={threshold}
           onChange={(e) => setThreshold(Number(e.target.value))} className="min-w-40 flex-1 accent-brand-blue" />
-        <button onClick={() => setThreshold(0.5)} disabled={threshold === 0.5}
+        <button onClick={() => setThreshold(DEFAULT_THRESHOLD)} disabled={threshold === DEFAULT_THRESHOLD}
           className="rounded-full px-3 py-1 text-[13px] font-medium text-brand-blue disabled:text-muted">
           Reset to 0.5
         </button>

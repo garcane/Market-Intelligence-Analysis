@@ -136,7 +136,7 @@ export function xyCurves(series: CurveSeries[], opts: {
 }): ChartOption {
   const fmt = numFmt(3);
   return {
-    grid: { left: 8, right: 24, top: 40, bottom: 44, containLabel: true },
+    grid: { left: 44, right: 24, top: 40, bottom: 44, containLabel: true },
     legend: { top: 0, left: 0, icon: "roundRect", itemWidth: 12, itemHeight: 4, textStyle: { color: "#555a6a" } },
     tooltip: {
       ...TOOLTIP,
