@@ -1,195 +1,218 @@
-# Market Intelligence Analysis
+<div align="center">
 
-> An end-to-end financial market intelligence and machine-learning research platform for analysing market behaviour, AI-sector exposure, cryptocurrency markets, financial news and sentiment.
+<img src="web/public/favicon.svg" alt="AI Market Intelligence logo" width="96" height="96" />
 
-This repository has evolved substantially from its original two-stock Bokeh dashboard. It is now a structured analytical platform with multi-source ingestion, a shared analytical data model, sentiment analysis, feature engineering, time-aware machine learning, explainability, event studies, thematic AI indices and a web app (React frontend, FastAPI backend).
+# AI Market Intelligence
 
-The project is intended as a **research and analytical system**, not an automated trading platform. Model outputs are probabilistic research signals and are not investment advice.
+**Market intelligence for AI, semiconductors, energy and crypto: ingestion, news sentiment, time-aware machine learning, event studies and a web dashboard.**
+
+[![Live demo](https://img.shields.io/badge/demo-live-ffd02f?style=flat-square&logo=vercel&logoColor=black)](https://ai-market-intelligence-self.vercel.app)
+![Python](https://img.shields.io/badge/python-3.13-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?style=flat-square&logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-212%20passing-2ea44f?style=flat-square&logo=pytest&logoColor=white)
+
+[**Live demo**](https://ai-market-intelligence-self.vercel.app) · [Quick start](#quick-start) · [Architecture](#architecture) · [Documentation](#documentation)
+
+<img src="docs/screenshots/overview.png" alt="Overview page: assets with name, ticker, type, returns, risk and six-month sparklines, filtered by category" width="100%" />
+
+</div>
 
 ---
 
-## Overview
+## Why this exists
 
-The current platform connects market data, news and analytical models through a reproducible pipeline:
+AI is no longer one trade. It runs from lithography machines and memory chips, through hyperscalers and GPU clouds, to the data centres and power plants that keep them running, and it moves crypto and broad benchmarks along the way. This project tracks that whole landscape as one consistent market universe. On top of it, it asks measurable questions:
 
-```text
-Market & News APIs
-        │
-        ▼
-┌───────────────────────┐
-│   Data Ingestion      │
-│ providers + fallback  │
-└───────────┬───────────┘
-            │
-            ▼
-┌───────────────────────┐
-│ Standardised Data     │
-│ prices · news ·       │
-│ sentiment · entities  │
-└───────────┬───────────┘
-            │
-            ▼
-┌───────────────────────┐
-│ Feature Engineering   │
-│ technical · momentum  │
-│ volatility ·          │
-│ cross-sectional ·     │
-│ sentiment             │
-└───────────┬───────────┘
-            │
-            ▼
-┌───────────────────────┐
-│ Target & Temporal     │
-│ Validation            │
-│ 5-day directional     │
-│ classification        │
-└───────────┬───────────┘
-            │
-            ▼
-┌───────────────────────┐
-│ Model Layer           │
-│ Logistic Regression   │
-│ Random Forest         │
-│ XGBoost               │
-│ HistGradientBoosting  │
-└───────────┬───────────┘
-            │
-      ┌─────┴──────────────┐
-      ▼                    ▼
-Explainability        Financial Analytics
-SHAP / permutation    event studies · indices
-importance / coeffs   performance · correlation
-      │                    │
-      └──────────┬─────────┘
-                 ▼
-      Web app: FastAPI + React
+- How have the AI supply chain, energy names and crypto performed, and how risky were they?
+- How do prices react to model releases, mega-deals and infrastructure announcements?
+- Does news sentiment add anything to short-horizon direction prediction, beyond price-based features?
+
+It is a **research and analytics platform**, not a trading system. Model outputs are probabilistic research signals, not investment advice.
+
+## Highlights
+
+- **76 instruments in one universe.** 58 stocks, 5 benchmarks, 3 thematic energy ETFs and the **top 10 cryptocurrencies by market cap**, re-ranked from CoinCodex on every ingestion run. A company can sit in several themes and is always a priced, analysable asset.
+- **Theme taxonomy.** *AI Supply Chain* (Semiconductors, Hyperscalers, Neoclouds, Data Centres, Power, Networking), *Energy* (Nuclear & Uranium, Clean Energy, Storage, Power Generation, Oil & Gas), *AI Models* and *AI Applications*.
+- **AI events timeline.** 97 curated events, from ChatGPT to the latest Claude, GPT, Gemini, Grok, DeepSeek and Qwen releases. More are **detected automatically from news headlines**, and every curated event with a listed company feeds an abnormal-return event study.
+- **News sentiment.** More than 72,000 articles are entity-matched and scored with VADER and TextBlob at article × model grain.
+- **Honest ML.** 5-day directional classification with a temporal split and embargo, and training-only preprocessing. PR-AUC is the headline metric, reported against naive baselines, with robustness and ablation checks.
+- **Explainability.** Tree importance, permutation importance, coefficients and SHAP are compared across models.
+- **Resilient ingestion.** Provider adapters, retries, fallbacks, schema validation, round-trip storage checks and documented data-quality repairs.
+- **Web app.** React, TypeScript and ECharts on a FastAPI backend, with 14 pages. It deploys as a read-only public demo on Vercel or Docker.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/supply-chain.png" alt="AI supply chain page with segment charts and member cards" /></td>
+    <td width="50%"><img src="docs/screenshots/energy.png" alt="Energy page with nuclear, clean energy, storage, power generation and oil and gas segments" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>AI supply chain</b>: six segments, every member linked to its price history</td>
+    <td align="center"><b>Energy</b>: nuclear, clean energy, storage, generation, oil and gas, plus ETFs</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/events.png" alt="AI events page with average abnormal return chart" /></td>
+    <td width="50%"><img src="docs/screenshots/risk.png" alt="Risk analytics page with risk-return scatter and risk table" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>AI events</b>: curated and news-detected, with price reactions</td>
+    <td align="center"><b>Risk analytics</b>: volatility, drawdowns and correlation by category</td>
+  </tr>
+</table>
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Sources
+        YF[Yahoo Finance<br/>prices + ticker news]
+        CC[CoinCodex<br/>crypto rankings]
+        GN[Google News RSS]
+        KP[Finnhub · Alpha Vantage · Tiingo<br/><i>optional keys</i>]
+    end
+
+    subgraph Pipeline["Python pipeline (src/)"]
+        ING[Ingestion<br/>fallback · validation · repair]
+        UNI[(Reference universe<br/>companies · funds · themes<br/>crypto top 10 · events)]
+        SEN[Sentiment<br/>VADER · TextBlob]
+        FEA[Features & targets<br/>temporal split + embargo]
+        MOD[Models<br/>LR · RF · XGBoost · HGB]
+        EXP[Explainability<br/>SHAP · permutation]
+        ANA[Analytics<br/>indices · event study<br/>event detection]
+    end
+
+    subgraph Serving
+        API[FastAPI<br/>cached, read-only]
+        WEB[React + ECharts]
+    end
+
+    Sources --> ING
+    UNI --> ING
+    ING --> SEN --> FEA --> MOD --> EXP
+    ING --> ANA
+    SEN --> ANA
+    MOD & EXP & ANA --> API --> WEB
 ```
 
-The analytical model uses explicit dimensions and grain-defined fact tables for companies, markets, dates, news, sentiment, events and model outputs.
+The pipeline writes its outputs to `data/` and `outputs/`. The API only reads them: it caches each file until it changes, and never fetches data or trains a model on a request. [`src/ingestion/universe.py`](src/ingestion/universe.py) is the single source of truth for "which instruments do we track", so no ticker list is hard-coded downstream.
 
 ---
 
-## Core capabilities
+## Market universe
 
-### Multi-source market and news ingestion
+| Category | Contents | Defined in |
+|---|---|---|
+| **Stocks** | 58 listed companies, including NVIDIA, TSMC, ASML, SanDisk, Intel, IBM, ServiceNow, Nebius, IREN, TeraWulf, Cipher Digital, Constellation Energy and Amprius | `data/reference/companies.csv` |
+| **AI Supply Chain** | Semiconductors · Hyperscalers · Neoclouds · Data Centres · Power · Networking | `data/reference/themes.csv` |
+| **Energy** | Nuclear & Uranium · Clean Energy · Energy Storage · Power Generation · Oil & Gas, including NCLR, INRG and WENS | `data/reference/themes.csv` |
+| **Benchmarks** | S&P 500 · Nasdaq-100 · Vanguard FTSE All-World · Vanguard FTSE Emerging Markets · iShares Semiconductor | `data/reference/funds.csv` |
+| **Crypto** | Top 10 by market cap (currently BTC, ETH, USDT, BNB, XRP, USDC, SOL, TRX, ZEC, DOGE), plus pinned modelling assets | generated by `src.ingestion.crypto_universe` |
 
-The ingestion layer uses provider adapters, validation, retries and fallback logic rather than depending on a single external service.
+Private AI labs (OpenAI, Anthropic, xAI, DeepSeek, Moonshot and others) are first-class entities for news and events, even without a price series. Full taxonomy, listing choices and data-quality notes are in [`UNIVERSE.md`](UNIVERSE.md).
 
-Implemented providers (`src/ingestion/providers.py`):
+## Data sources
 
-- **Yahoo Finance / yfinance** — primary market data for stocks, ETFs, indices *and* crypto
-- **CoinCodex** — crypto fallback only (found to drop ~11% of days when used as primary; see `CHECKPOINT.md`)
-- **Yahoo Finance news (yfinance)**: key-free ticker news, the latest ~100 stories per asset. It has no date-range query, so history accumulates by collecting daily.
-- **Google News RSS**: key-free keyword news, which also covers private AI companies. Current headlines only, with no historical archive.
+| Provider | Used for | Key required |
+|---|---|---|
+| Yahoo Finance (yfinance) | Prices for stocks, ETFs, indices and crypto; latest ticker news | No |
+| CoinCodex | Crypto market-cap ranking; crypto price fallback | No |
+| Google News RSS | Keyword news, including private AI labs | No |
+| Tiingo | Equity price fallback | `TIINGO_API_TOKEN` |
+| Alpha Vantage | Historical news (two or more years) | `ALPHA_VANTAGE_API_KEY` |
+| Finnhub | Dense recent company news | `FINNHUB_API_KEY` |
 
-Keyed providers, each used only when its key is set in `.env` (see `.env.example`):
-
-- **Tiingo** (`TIINGO_API_TOKEN`) — equity price fallback after Yahoo. Tiingo's raw prices are split-adjusted on ingestion to match Yahoo's.
-- **Alpha Vantage** (`ALPHA_VANTAGE_API_KEY`) — historical news for equities and crypto, reaching back at least two years. It is the main source of training-period news. It is *not* a price fallback: on the free plan, full price history is premium.
-- **Finnhub** (`FINNHUB_API_KEY`) — dense company news for equities, but the free plan reaches back only about a year. Its price history is premium.
-
-Run `python -m src.ingestion.probe_providers` to see what your keys' free plans actually allow; nothing in this list assumes a paid tier. News is collected by `python -m src.ingestion.run_news_backfill`; run it daily. It backfills history from Finnhub and Alpha Vantage within their free daily quotas, resuming where it stopped. It also collects the latest Yahoo Finance news for every ingested ticker.
-
-Researched but **not implemented** (see `API Reference Documents/`): GDELT and other candidate providers.
-
-Provider quotas, availability, licensing and API terms can change and should be verified before deployment.
-
-### AI and financial market universe
-
-The project maintains a structured universe of public companies, private AI labs and cryptocurrency assets.
-
-The equity taxonomy covers areas including:
-
-- Compute
-- Custom AI silicon and networking
-- Semiconductor manufacturing
-- Memory
-- Cloud and AI infrastructure
-- Consumer and platform companies
-- AI model providers
-
-Companies can have multiple AI-sector classifications through a many-to-many bridge rather than duplicated company records.
-
-The current crypto universe includes BTC, ETH, SOL, XRP, BNB, ADA, DOGE, TRX, LINK and AVAX. SUI, the original project's asset, was deliberately removed from the tracked universe and its legacy CSVs deleted; they remain recoverable from git history.
-
-### News sentiment
-
-News is entity-matched before entering the analytical feature pipeline. Sentiment is stored at article/model grain so multiple methods can be compared on the same articles.
-
-Current sentiment methods include:
-
-- VADER
-- TextBlob
-- Extensible support for additional models such as FinBERT
-
-### Machine learning
-
-The primary modelling task is a **5-day-ahead directional classification problem**. This replaces the original repository's raw-price regression approach as the primary modelling track.
-
-The current model suite contains:
-
-- Logistic Regression
-- Random Forest
-- XGBoost
-- HistGradientBoosting
-- Majority-class baseline
-- Random baseline
-
-Preprocessing is fitted on training data only and applied unchanged to validation data. **PR-AUC** is the primary model-selection metric, with ROC-AUC, F1 and Brier score used as secondary measures.
-
-### Explainability
-
-The model layer includes:
-
-- Tree-based feature importance
-- Permutation importance
-- Logistic Regression coefficients
-- SHAP where supported
-- Cross-model feature comparison
-
-The aim is to distinguish recurring signals from model-specific artefacts rather than relying on a single importance method.
-
-### Event studies
-
-The analytics layer includes event studies for examining market reactions around manually curated, high-confidence events. Event windows use trading-day positions and abnormal returns relative to a benchmark.
-
-### AI thematic indices
-
-The project constructs equal-weighted thematic indices from the AI company taxonomy, including:
-
-- AI Infrastructure
-- AI Platform
-- AI Model Provider
-
-These can be compared with independent market benchmarks and other asset classes.
-
-### Web app
-
-A React frontend backed by a FastAPI service presents the project's outputs. It replaced the original Streamlit dashboard. It has these pages:
-
-1. Overview
-2. AI market (thematic indices)
-3. Stock performance
-4. Risk analytics
-5. Company explorer
-6. AI supply chain
-7. AI events
-8. Sentiment
-9. News feed
-10. Model performance
-11. Explainability (permutation importance, SHAP, coefficients)
-12. Predictions: the latest rows scored against the validation base rate
-13. Pipeline: re-run stages from the browser, local mode only
-
-The API serves the pipeline's saved outputs. It caches each file until it changes, and it never trains a model on page load. A read-only `APP_MODE=public` build is Docker-ready. See [`WEB_APP.md`](WEB_APP.md).
+Every key is optional: the pipeline runs end to end with none set. Run `python -m src.ingestion.probe_providers` to see what your free-tier keys actually allow.
 
 ---
 
-## Current model results
+## Quick start
 
-The current 5-day validation experiment contains 2,826 training rows and 981 validation rows after feature preparation and warm-up filtering.
+**Prerequisites:** Python 3.13 and Node.js 20 or later.
 
-| Model | Validation PR-AUC | Validation ROC-AUC |
+```bash
+git clone https://github.com/garcane/-Market-Intelligence-Analysis.git
+cd -Market-Intelligence-Analysis
+
+python -m venv .venv
+source .venv/bin/activate            # Windows: .venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+cp .env.example .env                 # optional: add any API keys you have
+pytest                               # 212 tests, no network access needed
+```
+
+### Run the pipeline
+
+Each stage reads the previous stage's output from `data/`:
+
+```bash
+# 1. Ingest: the six modelling assets with news, then the full universe
+python -m src.ingestion.run_ingestion --assets NVDA,MSFT,TSM,BTC,ETH,SOL --start 2023-06-01
+python -m src.ingestion.run_ingestion --start 2023-01-01 --skip-news   # re-ranks the crypto top 10 first
+python -m src.ingestion.run_news_backfill                               # run daily to build news history
+
+# 2. Sentiment, features, targets and the temporal split
+python -m src.sentiment.run_sentiment
+python -m src.features.run_features
+python -m src.features.run_target
+python -m src.models.run_split
+
+# 3. Models and diagnostics
+python -m src.models.train_baselines
+python -m src.models.run_explain
+python -m src.models.run_robustness
+python -m src.models.run_ablation
+python -m src.models.run_model_plots
+
+# 4. Market analytics
+python -m src.analytics.run_eda
+python -m src.analytics.run_indices
+python -m src.analytics.event_detection
+python -m src.analytics.run_event_study
+python -m src.analytics.run_sentiment_viz
+```
+
+### Run the web app
+
+```bash
+cd web && npm install && npm run build && cd ..
+uvicorn api.main:app                 # http://127.0.0.1:8000
+```
+
+For hot reload, run `npm run dev` in `web/` alongside `uvicorn api.main:app --reload`. In local mode, the **Pipeline** page can re-run any stage from the browser (localhost only).
+
+---
+
+## Deployment
+
+The public deployment runs in `APP_MODE=public`: read-only, with no pipeline endpoints and no API docs, and price rows from providers whose licence forbids redistribution are withheld.
+
+**Vercel** (live at [ai-market-intelligence-self.vercel.app](https://ai-market-intelligence-self.vercel.app)). [`app.py`](app.py) is the entry point and [`pyproject.toml`](pyproject.toml) holds the slim runtime dependencies. [`.vercelignore`](.vercelignore) is an allowlist, so only the app, the built frontend and the data snapshot are uploaded, never `.env`.
+
+```bash
+cd web && npm run build && cd ..
+npx vercel deploy --prod
+```
+
+**Docker**
+
+```bash
+docker build -t ai-market-intelligence .
+docker run -p 8000:8000 ai-market-intelligence
+```
+
+Both ship a snapshot of the pipeline's outputs. To refresh the demo, run the pipeline locally and redeploy. See [`WEB_APP.md`](WEB_APP.md) for modes, endpoints and verification steps.
+
+---
+
+## Model results
+
+The task is to predict whether an asset's **5-day forward return exceeds +2%**. The data has 2,826 training rows and 981 validation rows, with an embargo between them. Metrics are on the validation split:
+
+| Model | PR-AUC | ROC-AUC |
 |---|---:|---:|
 | XGBoost | **0.409** | 0.579 |
 | Random Forest | 0.408 | 0.563 |
@@ -198,264 +221,81 @@ The current 5-day validation experiment contains 2,826 training rows and 981 val
 | Majority-class baseline | 0.353 | 0.500 |
 | Random baseline | 0.339 | 0.481 |
 
-The results are deliberately reported conservatively. The models provide a modest lift over the naïve baselines rather than demonstrating highly predictive market forecasting. No model produced suspiciously high validation performance; the best validation ROC-AUC was 0.583.
+What the numbers do and don't show:
 
-An initial tree-model configuration showed substantial train/validation overfitting. The models were subsequently regularised, reducing the train/validation gap while preserving validation performance.
-
-See [`MODELS.md`](MODELS.md) for the complete methodology, metrics and diagnostic results.
-
-### Robustness and ablation findings
-
-Two follow-up analyses qualify the table above:
-
-- **The top-two ranking is not confident.** Across five random seeds, XGBoost's PR-AUC has a standard deviation of 0.0025, larger than its 0.001 lead over Random Forest. The broader result, that tree ensembles modestly beat Logistic Regression and the baselines, does hold. See [`ROBUSTNESS.md`](ROBUSTNESS.md).
-- **Raw PR-AUC misleads across configurations.** It rises with horizon and falls with threshold mostly because the base rate changes. Normalized by base rate, the 1-day horizon shows the highest lift (1.69x), not the 5-day primary horizon.
-- **Sentiment has no measurable effect on prediction.** Market + sentiment versus market-only differs by -0.007 in one run and +0.001 in a fresh reproduction, which is inside seed noise. Sentiment alone never predicts a positive. The likely cause is coverage: sentiment exists for well under 1% of rows because the key-free news source has no historical archive. See [`ABLATION_STUDY.md`](ABLATION_STUDY.md).
+- **The lift is modest and real, but the ranking isn't settled.** Tree ensembles beat the baselines. The gap between XGBoost and Random Forest, though, is smaller than seed-to-seed noise ([`ROBUSTNESS.md`](ROBUSTNESS.md)).
+- **Sentiment adds nothing measurable yet.** Sentiment covers under 1% of training rows, so its effect sits inside seed noise ([`ABLATION_STUDY.md`](ABLATION_STUDY.md)).
+- **Suspiciously good results are diagnosed, not celebrated.** A high AUC triggers a leakage check, and overfit early tree models were regularised ([`MODELS.md`](MODELS.md)).
 
 ---
 
-## Repository structure
+## Engineering and data integrity
+
+| Risk | Safeguard |
+|---|---|
+| Temporal leakage | Time-ordered split with an embargo; features only use data available at *t* |
+| Preprocessing leakage | Scalers and encoders fit on training data only |
+| Target leakage | Target and split columns are excluded from feature sets by construction |
+| Provider outages | Per-provider retries with ordered fallbacks and health reporting |
+| Bad vendor data | Schema and OHLC validation, logged repairs, and a round-trip storage check before any write |
+| Ambiguous tickers | A crypto symbol from Yahoo is used only if its price matches CoinCodex's |
+| Silent regressions | 212 unit, API and end-to-end tests, all offline and deterministic |
+| Secrets | Keys read from the environment only; errors redact them; deployments use an allowlist |
+
+Every failure found during development is recorded, with its root cause and fix, in [`FAILURE_LOG.md`](FAILURE_LOG.md).
+
+---
+
+## Project structure
 
 ```text
--Market-Intelligence-Analysis/
-│
-├── API Reference Documents/       # API architecture and provider documentation
+├── api/                  FastAPI app: routers, cached read-only data access, settings
+├── app.py                Vercel entry point (public mode)
 ├── data/
-│   ├── raw/                       # Raw ingested market/news data
-│   ├── processed/                 # Standardised analytical datasets
-│   └── reference/                 # Companies, crypto assets, events and taxonomy
-│
-├── api/                           # FastAPI backend: routers, cached data access
-├── web/                           # React + Vite + TypeScript frontend
-│
-├── notebooks/                     # Exploratory and reporting notebooks
-│
+│   ├── reference/        Universe: companies, funds, themes, crypto candidates, events
+│   ├── raw/              Ingested prices, news and sentiment   (generated, gitignored)
+│   └── processed/        Features, targets, reports            (generated, gitignored)
+├── docs/screenshots/     Images used in this README
+├── notebooks/            Exploration and reporting notebooks
+├── outputs/              Figures and trained models            (generated, gitignored)
 ├── src/
-│   ├── analytics/                 # Indices, event studies and financial analysis
-│   ├── features/                  # Feature engineering, targets and splits
-│   ├── ingestion/                 # Provider adapters and orchestration
-│   ├── models/                    # Dataset construction, training and explainability
-│   ├── sentiment/                 # Entity matching and sentiment analysis
-│   └── config.py                  # Project configuration
-│
-├── tests/                         # Unit and end-to-end integration tests
-│
-├── outputs/
-│   ├── figures/                   # Generated analytical visualisations
-│   └── model_results/             # Model artefacts and reports
-│
-├── ABLATION_STUDY.md              # Does sentiment help? Feature-group ablation
-├── ANALYSIS_REPORT.md             # Full analytical report
-├── CHECKPOINT.md                  # Development and stage-completion log
-├── DATA_MODEL.md                  # Analytical star-schema design
-├── EVENT_STUDY.md                 # Event-study methodology
-├── EXPLAINABILITY.md              # Explainability methodology
-├── FAILURE_LOG.md                 # Every failure found, classified, with root cause
-├── FEATURES.md                    # Feature engineering documentation
-├── FINAL_QA.md                    # Final QA audit and Definition of Done
-├── INDICES.md                     # AI thematic index methodology
-├── MODELS.md                      # Model training and evaluation
-├── PERFORMANCE_REVIEW.md          # Pipeline profiling and optimisation
-├── PROJECT_AUDIT.md               # Audit of the original repository
-├── REPRODUCIBILITY.md             # Clean-environment reproduction test
-├── ROBUSTNESS.md                  # Horizon/threshold/seed/asset-group robustness
-├── SOFTWARE_ENGINEERING.md        # Architecture and engineering decisions
-├── SPLIT.md                       # Temporal split and embargo design
-├── TESTING.md                     # Testing strategy and coverage
-├── TARGET.md                      # Target-definition methodology
-├── UNIVERSE.md                    # market universe: stocks, themes, funds, crypto top 10
-├── VISUALISATION.md               # Visualisation catalogue
-└── WEB_APP.md                     # Web app architecture, modes and endpoints
+│   ├── ingestion/        Providers, orchestration, validation, universe, crypto ranking
+│   ├── sentiment/        Entity matching and scoring
+│   ├── features/         Market, cross-sectional and sentiment features; targets
+│   ├── models/           Datasets, splits, training, evaluation, explainability
+│   └── analytics/        Indices, event study, event detection, market statistics
+├── tests/                Offline test suite
+├── web/                  React 19 + Vite + TypeScript + Tailwind + ECharts frontend
+├── Dockerfile            Public read-only image
+└── *.md                  Methodology documents (see below)
 ```
-
-The original scripts and notebooks are retained under `Old Source Files/` as historical references. They are not the current production pipeline.
-
----
-
-## Getting started
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/garcane/-Market-Intelligence-Analysis.git
-cd -Market-Intelligence-Analysis
-```
-
-### 2. Create a virtual environment
-
-```bash
-python -m venv .venv
-```
-
-Windows PowerShell:
-
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-macOS/Linux:
-
-```bash
-source .venv/bin/activate
-```
-
-### 3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Configure API credentials
-
-Optional. Copy `.env.example` to `.env` and fill in any keys you have; every variable is optional, and the pipeline runs end to end with none set. Never commit API keys or other secrets.
-
-The test and analytical layers are designed to run independently of live API access where possible.
-
-### 5. Run the test suite
-
-```bash
-pytest tests/
-```
-
-A literal `git clone` reproduction passed **148/148 tests**, both with zero data present and after running the full pipeline on freshly ingested live data.
-
-### 6. Run the analytical pipeline
-
-The main stages are executed as Python modules. The detailed execution sequence is documented in `CHECKPOINT.md` and the relevant stage documents.
-
-```text
-Ingestion
-   ↓
-Sentiment
-   ↓
-Features
-   ↓
-Target
-   ↓
-Temporal split
-   ↓
-Models
-   ↓
-Explainability
-   ↓
-Indices / Event Study / Visualisations
-   ↓
-Web app
-```
-
-Exact commands, in order (each stage reads the previous stage's output from `data/`):
-
-```bash
-python -m src.ingestion.run_ingestion --assets NVDA,MSFT,TSM,BTC,ETH,SOL --start 2023-06-01
-python -m src.sentiment.run_sentiment
-python -m src.features.run_features
-python -m src.features.run_target
-python -m src.models.run_split
-python -m src.models.train_baselines
-python -m src.models.run_explain
-python -m src.models.run_robustness
-python -m src.models.run_ablation
-python -m src.models.run_model_plots
-python -m src.analytics.run_eda
-python -m src.ingestion.run_ingestion --start 2023-01-01 --skip-news   # full universe: stocks, ETFs, benchmarks, crypto top 10
-python -m src.analytics.run_indices
-python -m src.analytics.event_detection
-python -m src.analytics.run_event_study
-python -m src.analytics.run_sentiment_viz
-```
-
-The second ingestion call prices the rest of the universe (see `UNIVERSE.md`): every stock in the AI supply chain and energy themes, the benchmark and energy ETFs, and the crypto top 10, which it first re-ranks from CoinCodex. These are kept out of the six-asset modelling universe (`MODELING_MARKET_IDS` in `src/features/target.py`).
-
-### 7. Launch the web app
-
-```bash
-cd web && npm install && npm run build && cd ..   # once, and after frontend changes
-uvicorn api.main:app                              # http://127.0.0.1:8000
-```
-
-For development with hot reload, run `npm run dev` in `web/` alongside `uvicorn api.main:app --reload`. Public mode, Docker and the verification steps are in [`WEB_APP.md`](WEB_APP.md).
-
----
-
-## Reproducibility and data integrity
-
-Reproducibility is a core design requirement. The project explicitly addresses common failure modes in financial machine learning:
-
-- **Temporal leakage:** train/validation partitions respect time ordering.
-- **Preprocessing leakage:** scalers and encoders are fitted only on training data.
-- **Non-stationary raw levels:** raw price/volume levels are excluded from the core ML feature set where appropriate.
-- **Target leakage:** target and split columns are explicitly excluded from modelling features.
-- **Suspicious model performance:** unusually high AUC triggers a diagnostic rather than being treated as a success.
-- **Provider failures:** ingestion uses retry and fallback mechanisms where available.
-- **Schema validation:** market and news data are validated before entering downstream stages.
-- **Automated testing:** unit and integration tests cover the analytical pipeline.
-
-The current test suite contains **148 automated tests**, including an end-to-end integration test covering the real sentiment → feature → target → split → model chain.
-
-See [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md) and [`TESTING.md`](TESTING.md) for the full verification record.
 
 ---
 
 ## Documentation
 
-The README is intentionally an entry point. Detailed methodology is maintained in dedicated documents:
-
-| Document | Purpose |
+| Topic | Documents |
 |---|---|
-| [`UNIVERSE.md`](UNIVERSE.md) | Market universe, themes (AI supply chain, energy), benchmarks and the dynamic crypto top 10 |
-| [`DATA_MODEL.md`](DATA_MODEL.md) | Star-schema and fact-table design |
-| [`FEATURES.md`](FEATURES.md) | Feature engineering methodology |
-| [`TARGET.md`](TARGET.md) | Directional target definition |
-| [`SPLIT.md`](SPLIT.md) | Temporal validation design |
-| [`MODELS.md`](MODELS.md) | Model training, evaluation and results |
-| [`ROBUSTNESS.md`](ROBUSTNESS.md) | Robustness across horizons, thresholds, seeds and asset groups |
-| [`ABLATION_STUDY.md`](ABLATION_STUDY.md) | Feature-group ablation: does sentiment help? |
-| [`EXPLAINABILITY.md`](EXPLAINABILITY.md) | Feature importance and model interpretation |
-| [`EVENT_STUDY.md`](EVENT_STUDY.md) | Event-study methodology |
-| [`INDICES.md`](INDICES.md) | AI thematic index construction |
-| [`WEB_APP.md`](WEB_APP.md) | Web app: architecture, modes, endpoints, verification |
-| [`VISUALISATION.md`](VISUALISATION.md) | Analytical visualisation catalogue |
-| [`TESTING.md`](TESTING.md) | Test strategy and coverage |
-| [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md) | Fresh-environment reproduction results |
-| [`PERFORMANCE_REVIEW.md`](PERFORMANCE_REVIEW.md) | Pipeline profiling and optimisation |
-| [`ANALYSIS_REPORT.md`](ANALYSIS_REPORT.md) | Full analytical report: findings, limitations, conclusions |
-| [`FINAL_QA.md`](FINAL_QA.md) | Final QA audit and Definition of Done checklist |
-| [`FAILURE_LOG.md`](FAILURE_LOG.md) | Every failure found during the build, classified, with root cause and fix |
-| [`PROJECT_AUDIT.md`](PROJECT_AUDIT.md) | Audit of the original repository |
-| `API Reference Documents/` | External data-source and API architecture |
-| [`CHECKPOINT.md`](CHECKPOINT.md) | Development history and stage completion log |
+| Universe and data | [`UNIVERSE.md`](UNIVERSE.md) · [`DATA_MODEL.md`](DATA_MODEL.md) · [`API Reference Documents/`](API%20Reference%20Documents/) |
+| Features and targets | [`FEATURES.md`](FEATURES.md) · [`TARGET.md`](TARGET.md) · [`SPLIT.md`](SPLIT.md) |
+| Modelling | [`MODELS.md`](MODELS.md) · [`EXPLAINABILITY.md`](EXPLAINABILITY.md) · [`ROBUSTNESS.md`](ROBUSTNESS.md) · [`ABLATION_STUDY.md`](ABLATION_STUDY.md) |
+| Market analytics | [`EVENT_STUDY.md`](EVENT_STUDY.md) · [`INDICES.md`](INDICES.md) · [`VISUALISATION.md`](VISUALISATION.md) · [`ANALYSIS_REPORT.md`](ANALYSIS_REPORT.md) |
+| Web app | [`WEB_APP.md`](WEB_APP.md) |
+| Engineering | [`SOFTWARE_ENGINEERING.md`](SOFTWARE_ENGINEERING.md) · [`TESTING.md`](TESTING.md) · [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md) · [`PERFORMANCE_REVIEW.md`](PERFORMANCE_REVIEW.md) |
+| Project history | [`CHECKPOINT.md`](CHECKPOINT.md) · [`FAILURE_LOG.md`](FAILURE_LOG.md) · [`FINAL_QA.md`](FINAL_QA.md) · [`PROJECT_AUDIT.md`](PROJECT_AUDIT.md) |
 
----
-
-## Project status
-
-**Status: Research platform / portfolio project — core pipeline implemented.**
-
-The major analytical stages are implemented and tested, including ingestion, sentiment, feature engineering, target construction, temporal splitting, baseline modelling, explainability, event studies, thematic indices, visualisation and the web app.
-
-The architecture remains intentionally extensible. Future work can add provider redundancy, additional sentiment models, richer model families, expanded event datasets and further financial analytics without replacing the core pipeline.
-
----
-
-## Historical context
-
-The repository began as a small Bokeh application for comparing two stocks with candlestick charts, moving averages and a linear-regression trend line.
-
-That original implementation is retained under `Old Source Files/` for provenance. The earlier XGBoost, LSTM and sentiment notebooks remain useful as research history, but their methodology is not treated as the current production pipeline.
-
-The current repository is a substantial refactor into a structured market-intelligence system with shared ingestion, data modelling, feature engineering, validation and analytical layers.
+The project began as a two-stock Bokeh dashboard. Those original scripts and notebooks are kept in `Old Source Files/` for provenance and aren't part of the current pipeline.
 
 ---
 
 ## Disclaimer
 
-This project is intended for **educational, research and portfolio purposes**. It is not financial advice and does not provide guaranteed predictions of future market behaviour.
-
-The models operate on historical and derived data. Historical validation performance does not guarantee future performance, and external data providers may experience outages, rate limits, schema changes or licensing restrictions.
-
-No live automated order execution is implemented by the project.
+This project is for **education, research and portfolio purposes only** and is not financial advice. It uses historical data from third-party providers, which can change, be delayed or be restricted by their terms of use. Past validation performance does not guarantee future results. The project does not place trades.
 
 ---
 
-## Author  
-GitHub: [@garcane](https://github.com/garcane)
+<div align="center">
+
+Built by [@garcane](https://github.com/garcane)
+
+</div>
