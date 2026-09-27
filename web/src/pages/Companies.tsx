@@ -24,12 +24,12 @@ const columns = [
   }),
   col.accessor("region", { header: "Region" }),
   col.accessor("country", { header: "Country" }),
-  col.accessor("ai_categories", {
-    header: "AI categories",
+  col.accessor("segments", {
+    header: "Themes",
     enableSorting: false,
     cell: (c) => (
       <div className="flex flex-wrap gap-1">
-        {c.getValue().map((cat) => <Badge key={cat} tone="blue">{cat}</Badge>)}
+        {c.getValue().map((seg) => <Badge key={seg} tone="blue">{seg}</Badge>)}
       </div>
     ),
   }),
@@ -44,7 +44,7 @@ const splitParam = (v: string | null) => (v ? v.split("|").filter(Boolean) : [])
 export default function Companies() {
   const companies = useCompanies();
   const [params, setParams] = useSearchParams();
-  const categories = splitParam(params.get("category"));
+  const themes = splitParam(params.get("theme"));
   const regions = splitParam(params.get("region"));
   const q = params.get("q") ?? "";
 
@@ -54,16 +54,16 @@ export default function Companies() {
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return (companies.data?.companies ?? []).filter((c) =>
-      (!categories.length || c.ai_categories.some((cat) => categories.includes(cat))) &&
+      (!themes.length || c.themes.some((t) => themes.includes(t))) &&
       (!regions.length || (c.region !== null && regions.includes(c.region))) &&
       (!needle || c.company_name.toLowerCase().includes(needle) || (c.ticker ?? "").toLowerCase().includes(needle)));
-  }, [companies.data, categories, regions, q]);
+  }, [companies.data, themes, regions, q]);
 
   return (
     <>
       <PageHeader
         title="Company explorer"
-        description="Every company in the AI universe, public or private, with its role in the AI value chain and whether its prices are ingested."
+        description="Every company in the universe, public or private, with its themes (AI supply chain, AI models, AI applications, energy) and whether its prices are ingested."
       />
       <QueryState query={companies} skeleton="h-[600px]">
         {(d) => (
@@ -84,8 +84,8 @@ export default function Companies() {
           >
             <div className="mb-5 flex flex-col gap-3">
               <div>
-                <div className="mb-2 text-[12px] font-semibold tracking-[0.5px] text-stone uppercase">AI category</div>
-                <FilterPills label="AI category" options={d.categories} selected={categories} onChange={(s) => update("category", s.join("|"))} />
+                <div className="mb-2 text-[12px] font-semibold tracking-[0.5px] text-stone uppercase">Theme</div>
+                <FilterPills label="Theme" options={d.themes} selected={themes} onChange={(s) => update("theme", s.join("|"))} />
               </div>
               <div>
                 <div className="mb-2 text-[12px] font-semibold tracking-[0.5px] text-stone uppercase">Region</div>

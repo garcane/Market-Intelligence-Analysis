@@ -11,6 +11,7 @@ import {
   Lightbulb,
   Menu,
   Network,
+  Zap,
   Newspaper,
   PlayCircle,
   ShieldAlert,
@@ -38,7 +39,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { to: "/", label: "Overview", icon: LayoutDashboard },
       { to: "/ai-market", label: "AI market", icon: BarChart3 },
-      { to: "/stocks", label: "Stock performance", icon: CandlestickChart },
+      { to: "/stocks", label: "Stocks", icon: CandlestickChart },
       { to: "/risk", label: "Risk analytics", icon: ShieldAlert },
     ],
   },
@@ -47,6 +48,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { to: "/companies", label: "Company explorer", icon: Building2 },
       { to: "/supply-chain", label: "AI supply chain", icon: Network },
+      { to: "/energy", label: "Energy", icon: Zap },
       { to: "/events", label: "AI events", icon: CalendarClock },
     ],
   },

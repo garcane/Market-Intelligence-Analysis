@@ -4,7 +4,14 @@ import pandas as pd
 import pytest
 
 from src.ingestion.store import round_trip_matches
-from src.ingestion.universe import build_market_universe
+from src.ingestion.universe import (
+    build_market_universe,
+    load_companies,
+    load_crypto_assets,
+    load_funds,
+    load_themes,
+    market_categories,
+)
 from src.ingestion.validate import validate_market_prices, validate_news
 
 
@@ -158,12 +165,39 @@ class TestMarketUniverse:
         universe = build_market_universe()
         assert not universe["market_id"].duplicated().any()
 
-    def test_universe_has_both_asset_types(self):
+    def test_universe_has_every_asset_type(self):
         universe = build_market_universe()
-        assert set(universe["asset_type"]) == {"equity", "crypto"}
+        assert set(universe["asset_type"]) == {"equity", "etf", "index", "crypto"}
 
-    def test_every_row_has_exactly_one_of_company_or_crypto_id(self):
+    def test_every_row_has_exactly_one_entity_id(self):
         universe = build_market_universe()
-        has_company = universe["company_id"].notna()
-        has_crypto = universe["crypto_asset_id"].notna()
-        assert (has_company ^ has_crypto).all()
+        ids = universe[["company_id", "fund_id", "crypto_asset_id"]].notna().sum(axis=1)
+        assert (ids == 1).all()
+
+    def test_requested_instruments_are_tracked(self):
+        tracked = set(build_market_universe()["market_id"])
+        assert {"ASML", "TSM", "SNDK", "INTC", "IBM", "NBIS", "NOW", "IREN", "WULF", "CIFR",
+                "AMPX", "CEG", "NCLR", "INRG", "WENS", "SPX", "NDX", "VWRL", "VFEM"} <= tracked
+
+    def test_every_themed_entity_is_a_known_company_or_fund(self):
+        themes = load_themes()
+        known = set(load_companies()["company_id"]) | set(load_funds()["fund_id"])
+        assert set(themes["entity_id"]) <= known
+
+
+class TestMarketCategories:
+    def test_stock_in_several_themes_gets_each_category(self):
+        cats = market_categories()
+        assert cats["CEG"]["categories"] == ["Stocks", "AI Supply Chain", "Energy"]
+        assert "AI Supply Chain / Power" in cats["CEG"]["segments"]
+
+    def test_benchmarks_crypto_and_thematic_funds(self):
+        cats = market_categories()
+        assert cats["SPX"]["categories"] == ["Benchmarks"]
+        assert cats["NCLR"]["categories"] == ["Energy"]
+        assert all(cats[m]["categories"] == ["Crypto"] for m in load_crypto_assets()["symbol"])
+
+    def test_ai_supply_chain_has_the_six_segments(self):
+        themes = load_themes()
+        segments = set(themes.loc[themes["theme"] == "AI Supply Chain", "segment"])
+        assert segments == {"Semiconductors", "Hyperscalers", "Neoclouds", "Data Centres", "Power", "Networking"}

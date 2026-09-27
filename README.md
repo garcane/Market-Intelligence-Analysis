@@ -77,7 +77,7 @@ The ingestion layer uses provider adapters, validation, retries and fallback log
 
 Implemented providers (`src/ingestion/providers.py`):
 
-- **Yahoo Finance / yfinance** — primary market data for equities *and* crypto
+- **Yahoo Finance / yfinance** — primary market data for stocks, ETFs, indices *and* crypto
 - **CoinCodex** — crypto fallback only (found to drop ~11% of days when used as primary; see `CHECKPOINT.md`)
 - **Yahoo Finance news (yfinance)**: key-free ticker news, the latest ~100 stories per asset. It has no date-range query, so history accumulates by collecting daily.
 - **Google News RSS**: key-free keyword news, which also covers private AI companies. Current headlines only, with no historical archive.
@@ -263,7 +263,7 @@ Two follow-up analyses qualify the table above:
 ├── SPLIT.md                       # Temporal split and embargo design
 ├── TESTING.md                     # Testing strategy and coverage
 ├── TARGET.md                      # Target-definition methodology
-├── UNIVERSE.md                    # AI company and crypto universe
+├── UNIVERSE.md                    # market universe: stocks, themes, funds, crypto top 10
 ├── VISUALISATION.md               # Visualisation catalogue
 └── WEB_APP.md                     # Web app architecture, modes and endpoints
 ```
@@ -357,14 +357,14 @@ python -m src.models.run_robustness
 python -m src.models.run_ablation
 python -m src.models.run_model_plots
 python -m src.analytics.run_eda
-python -m src.analytics.fetch_benchmarks
-python -m src.ingestion.run_ingestion --assets AMD,AVGO,AMZN,ORCL,AAPL,GOOGL,META,MU --start 2023-06-01 --skip-news
+python -m src.ingestion.run_ingestion --start 2023-01-01 --skip-news   # full universe: stocks, ETFs, benchmarks, crypto top 10
 python -m src.analytics.run_indices
+python -m src.analytics.event_detection
 python -m src.analytics.run_event_study
 python -m src.analytics.run_sentiment_viz
 ```
 
-The second ingestion call adds the equities used only by the thematic indices; they are kept out of the six-asset modelling universe (`MODELING_MARKET_IDS` in `src/features/target.py`).
+The second ingestion call prices the rest of the universe (see `UNIVERSE.md`): every stock in the AI supply chain and energy themes, the benchmark and energy ETFs, and the crypto top 10, which it first re-ranks from CoinCodex. These are kept out of the six-asset modelling universe (`MODELING_MARKET_IDS` in `src/features/target.py`).
 
 ### 7. Launch the web app
 
@@ -402,7 +402,7 @@ The README is intentionally an entry point. Detailed methodology is maintained i
 
 | Document | Purpose |
 |---|---|
-| [`UNIVERSE.md`](UNIVERSE.md) | AI company, supply-chain and crypto taxonomy |
+| [`UNIVERSE.md`](UNIVERSE.md) | Market universe, themes (AI supply chain, energy), benchmarks and the dynamic crypto top 10 |
 | [`DATA_MODEL.md`](DATA_MODEL.md) | Star-schema and fact-table design |
 | [`FEATURES.md`](FEATURES.md) | Feature engineering methodology |
 | [`TARGET.md`](TARGET.md) | Directional target definition |

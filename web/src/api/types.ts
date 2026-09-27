@@ -13,7 +13,7 @@ export interface Meta {
   scored_articles: number;
 }
 
-export type AssetKind = "equity" | "crypto" | "benchmark";
+export type AssetKind = "stock" | "etf" | "index" | "crypto";
 
 export interface SummaryStats {
   n_days: number;
@@ -25,9 +25,20 @@ export interface SummaryStats {
   total_return: Num;
 }
 
-export interface MarketRow extends SummaryStats {
-  market_id: string;
+export interface AssetInfo {
+  name: string;
   kind: AssetKind;
+  currency: string | null;
+  /** e.g. ["Stocks", "AI Supply Chain", "Energy"] */
+  categories: string[];
+  /** "Theme / Segment", e.g. "AI Supply Chain / Power" */
+  segments: string[];
+  /** market-cap rank, crypto only */
+  rank: number | null;
+}
+
+export interface MarketRow extends SummaryStats, AssetInfo {
+  market_id: string;
   modelled: boolean;
   last_close: number;
   change_1d: Num;
@@ -47,9 +58,8 @@ export interface PriceRow {
   rolling_vol_30d: Num;
 }
 
-export interface Prices {
+export interface Prices extends AssetInfo {
   market_id: string;
-  kind: AssetKind;
   available_range: [string, string];
   sources: string[];
   summary: SummaryStats;
@@ -72,26 +82,33 @@ export interface Company {
   industry: string | null;
   active_from: string | null;
   active_to: string | null;
-  ai_categories: string[];
+  currency: string | null;
+  themes: string[];
+  segments: string[];
   ingested: boolean;
 }
 
-export interface CategoryMember {
-  company_id: string;
-  ai_category: string;
-  subsector: string | null;
+export interface ThemeMember {
+  entity_id: string;
+  theme: string;
+  segment: string;
+  subsegment: string | null;
   role_notes: string | null;
-  company_name: string;
+  name: string;
   ticker: string | null;
   country: string | null;
   region: string | null;
+  kind: "stock" | "etf" | "private";
+  ingested: boolean;
 }
 
 export interface Companies {
   companies: Company[];
-  categories: string[];
+  themes: string[];
+  /** segments per theme, upstream to downstream */
+  segments: Record<string, string[]>;
   regions: string[];
-  category_members: CategoryMember[];
+  theme_members: ThemeMember[];
 }
 
 export interface SeriesPoint {
@@ -119,14 +136,18 @@ export interface EventRow {
   event_id: string;
   event_date: string;
   event_type: string;
-  primary_market_id: string;
+  organisation: string | null;
+  primary_market_id: string | null;
   title: string;
   description: string;
+  /** curated catalogue, or detected automatically from news headlines */
+  source: "curated" | "news";
+  n_articles?: number | null;
 }
 
 export interface EventOutcome {
   event_id: string;
-  market_id: string;
+  market_id: string | null;
   event_date: string;
   title: string;
   status: string;

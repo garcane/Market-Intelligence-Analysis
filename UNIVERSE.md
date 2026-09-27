@@ -1,50 +1,83 @@
-# UNIVERSE.md — AI & Financial Market Taxonomy (Stage 1)
+# UNIVERSE.md — Market Universe and Theme Taxonomy
 
-Defines the structured universe of entities the platform tracks. Source tables live in `data/reference/`.
+Defines which instruments the platform tracks and how they are grouped. Source tables live in `data/reference/`; `src/ingestion/universe.py` turns them into `dim_market`, the single list that ingestion, features, analytics and the web app all read. Nothing downstream hard-codes a ticker list.
 
-## 1. Design Decisions
+## 1. Categories
 
-- **One row per legal entity, many category tags** — a company like Microsoft is simultaneously an AI model provider (Azure OpenAI, Copilot), cloud infrastructure provider (Azure), and consumer platform (Windows/Office). Rather than duplicating the company row per category (which the target spec warns against — "avoid duplicate entities where possible"), `companies.csv` holds one canonical row per entity and `company_ai_categories.csv` is a many-to-many bridge table assigning one or more `ai_category` values to each `company_id`. This is the standard star-schema pattern for a many-to-many dimension attribute and will become `dim_company` + a bridge table in `DATA_MODEL.md` (Stage 2).
-- **Private labs included, `ticker` left null** — OpenAI, Anthropic, xAI, Mistral, DeepSeek, Moonshot, Zhipu, and MiniMax are not publicly traded. They are still first-class rows in `companies.csv` (`is_public=false`, `ticker` empty) because Stage 11 (event study) needs to record model-release events for them even without price data to react against directly — their releases still move the equities of partners/competitors (e.g., a DeepSeek release moving NVIDIA).
-- **Crypto kept as its own asset universe, not forced into `companies.csv`** — cryptocurrencies are not equities and have no ticker/exchange/company structure, so they get a separate `crypto_assets.csv`. This preserves the project's original SUI/XRP/ETH work while keeping the equity and crypto universes cleanly separable in the data model (`dim_market` will need an `asset_type` discriminator: `equity` vs `crypto`).
-- **List is explicitly extensible, not authoritative** — per the target prompt ("Do not assume this list is permanently correct"), new rows can be appended to any of the three CSVs without touching pipeline code, since Stage 3 ingestion will key off `company_id`/`ticker`/`asset_id`, not hard-coded lists.
+Every instrument appears in one or more top-level categories, which are the filters used throughout the web app:
 
-## 2. AI Model Provider Universe (`companies.csv` filtered to `ai_category = 'AI Model Provider'` in the bridge table)
+| Category | What it holds | Where it comes from |
+|---|---|---|
+| **Stocks** | every listed company (58) | `companies.csv`, `is_public = true` |
+| **AI Supply Chain** | chips, hyperscalers, neoclouds, data centres, power, networking | `themes.csv` |
+| **Energy** | nuclear and uranium, clean energy, storage, power generation, oil and gas, plus thematic ETFs | `themes.csv` |
+| **Benchmarks** | S&P 500, Nasdaq-100, Vanguard FTSE All-World, Vanguard FTSE Emerging Markets, iShares Semiconductor | `funds.csv`, `role = benchmark` |
+| **Crypto** | the current top 10 cryptocurrencies by market cap, plus pinned coins | `crypto_assets.csv` (generated) |
 
-| Region | Entities |
+Two further themes, **AI Models** (frontier labs, including private ones) and **AI Applications** (enterprise software and consumer platforms), are used by the company explorer.
+
+A company in a theme is always a priced market entity too: Constellation Energy is in Stocks, AI Supply Chain (Power) and Energy (Nuclear & Uranium) at once, and every theme page links each member to its price history.
+
+## 2. Reference tables
+
+| File | Grain | Notes |
+|---|---|---|
+| `companies.csv` | one row per company, public or private | `ticker` empty for private labs (OpenAI, Anthropic, xAI, …); `currency` is KRW for the two KRX listings |
+| `funds.csv` | one row per ETF or index | `symbol` is the Yahoo symbol (`^GSPC`, `VWRL.L`); `ticker` is the market_id; `role` is `benchmark` or `thematic` |
+| `themes.csv` | one row per (entity, theme, segment) | `entity_id` is a `company_id` or `fund_id`; `subsegment` refines e.g. Semiconductors into Compute / Memory & Storage / Foundry / Equipment; segments are listed upstream to downstream, which is the order the web app shows them in |
+| `crypto_candidates.csv` | one row per candidate coin | the pool the top 10 is ranked from; `pinned` coins are always tracked |
+| `crypto_assets.csv` | one row per tracked coin | **generated** by `src.ingestion.crypto_universe`; do not edit by hand |
+| `events.csv` | one row per curated AI event | see `EVENT_STUDY.md` |
+
+`themes.csv` replaces the earlier `company_ai_categories.csv`. It is the same many-to-many bridge, extended to funds and to non-AI themes.
+
+## 3. AI Supply Chain
+
+| Segment | Members |
 |---|---|
-| US / Western | OpenAI, Anthropic, Alphabet (Google DeepMind), xAI, Meta, Microsoft, Mistral AI |
-| Chinese | DeepSeek, Alibaba (Qwen), Moonshot AI (Kimi), Zhipu AI (GLM), Baidu (Ernie), Tencent (Hunyuan), MiniMax |
+| Semiconductors | NVIDIA, AMD, Intel, Arm, Broadcom, Marvell, TSMC, ASML, Applied Materials, Lam Research, KLA, Micron, SK Hynix, Samsung, SanDisk |
+| Hyperscalers | Microsoft, Amazon, Alphabet, Meta, Oracle, Alibaba |
+| Neoclouds | CoreWeave, Nebius, IREN |
+| Data Centres | IREN, TeraWulf, Cipher Digital, Applied Digital, Equinix, Digital Realty, Super Micro |
+| Power | Vertiv, Eaton, GE Vernova, Constellation Energy, Vistra, Bloom Energy |
+| Networking | Broadcom, Marvell, Arista, Cisco, Credo, Coherent |
 
-## 3. AI Equity Universe, by supply-chain position
+ServiceNow and IBM sit under AI Applications (enterprise AI software) rather than being labelled as infrastructure.
 
-| Category | Companies |
+## 4. Energy
+
+| Segment | Members |
 |---|---|
-| Compute | NVIDIA, AMD, Intel |
-| Custom AI Silicon / Networking | Broadcom, Marvell, Arista Networks |
-| Semiconductor Manufacturing | TSMC, ASML, Applied Materials, Lam Research |
-| Memory | Micron, SK Hynix, Samsung, SanDisk |
-| Cloud / AI Infrastructure | Microsoft, Alphabet, Amazon, Oracle, Meta, CoreWeave, Nebius |
-| Consumer / Platform | Apple, Microsoft, Alphabet, Amazon, Meta |
+| Nuclear & Uranium | Constellation Energy, Oklo, NuScale, Cameco, Centrus, WisdomTree Uranium and Nuclear Energy ETF (NCLR) |
+| Clean Energy | NextEra, First Solar, iShares Global Clean Energy Transition ETF (INRG) |
+| Energy Storage | Amprius (AMPX), Eos Energy, Fluence |
+| Power Generation | Vistra, GE Vernova, Bloom Energy |
+| Oil & Gas | ExxonMobil, Chevron, Shell, iShares MSCI World Energy Sector ETF (WENS) |
 
-33 unique public + private companies, 45 category assignments (see `company_ai_categories.csv` for the full role-level breakdown, including the reasoning for each cross-category tag).
+"CED" from the original request has no Yahoo Finance listing on the US, London or ASX exchanges; Constellation Energy (**CEG**) was taken as the intended ticker.
 
-## 4. Crypto Asset Universe
+## 5. Listing choices for funds
 
-BTC, ETH, SOL, XRP, BNB, ADA, DOGE, TRX, LINK, AVAX — see `crypto_assets.csv`. BTC/ETH serve as market-beta benchmarks (per Stage 12's request to compare AI indices against BTC/ETH); XRP is the asset the existing repo's sentiment notebook already partially targets. SUI has been deliberately excluded from the tracked universe (confirmed decision, despite the repo holding a legacy SUI OHLCV CSV from the original project) — `sui_2023-05-09_2025-02-08.csv` is retained as a historical reference file only, not a Stage 3 ingestion target.
+- **NCLR** — `NCLR.L`, the USD line. The GBP line `NCLP.L` has broken Yahoo data (a 78× jump in March 2025).
+- **INRG** — `INRG.MI` (Milan, EUR). Yahoo's London series `INRG.L` has a block of stale, zero-volume rows at the wrong price level from late April to May 2025, which shows up as a false +33% day.
+- **WENS** — `WENS.L` (GBP).
+- **VWRL / VFEM** — the distributing London lines `VWRL.L` / `VFEM.L` (GBP).
+- **Nasdaq-100** — `^NDX` replaces the Nasdaq Composite (`^IXIC`) used earlier.
 
-## 5. Known Gaps / Deferred
+Prices are stored in each instrument's own currency (the web app labels non-USD prices). Returns, volatility and drawdowns are currency-neutral within a series; cross-currency comparisons of *levels* are not meaningful.
 
-- No `dim_model` (individual model releases, e.g. "GPT-5", "Gemini 3", "DeepSeek-V4") yet — that belongs to Stage 2's data model design, seeded from this company universe.
-- Samsung and SK Hynix trade in KRW on KRX; a currency-normalisation decision is deferred to Stage 3 ingestion design rather than baked into this taxonomy.
-- Not all listed companies necessarily have easily obtainable free-tier price history (e.g. Korean exchange tickers via yfinance) — this will be validated, not assumed, during Stage 3 ingestion, and any that fail will be documented rather than silently dropped.
+## 6. Dynamic crypto top 10
 
-## 6. Stage 1 Completion Check
+`python -m src.ingestion.crypto_universe` (also run at the start of every `run_ingestion`, unless `--no-crypto-refresh`):
 
-- [x] AI model provider taxonomy created, extensible (§2)
-- [x] AI equity universe grouped by supply-chain category (§3)
-- [x] Canonical company table with required fields (`company_id, company_name, ticker, country, region, industry, ai_category*, exchange, active_from, active_to`) — `ai_category` implemented as a bridge table rather than a single column, documented above with rationale
-- [x] Duplicate entities avoided (one row per company; multi-category via bridge table)
-- [x] Crypto asset universe defined for the existing SUI/XRP/ETH work
+1. Ranks coins by market cap from CoinCodex's full listing. When that endpoint is down, it falls back to CoinCodex's per-coin history endpoint for every coin in `crypto_candidates.csv`. The pool is roughly 3× larger than the top 10 and only has to *contain* the top 10. When this was written the listing was returning Cloudflare 5xx errors, so the fallback was in use.
+2. Keeps the top 10, plus the pinned coins (BTC, ETH and SOL, which the models are trained on).
+3. Checks each coin's Yahoo symbol (`SYMBOL-USD`) and uses it only if Yahoo's latest close is within 5% of CoinCodex's price. Yahoo reuses tickers for unrelated coins (`TON-USD` trades near $0.005), so a coin without a trusted Yahoo symbol is priced from CoinCodex instead.
+4. If CoinCodex is unreachable entirely, the existing `crypto_assets.csv` is kept.
 
-**Stage 1 status: COMPLETE.**
+A coin that drops out of the top 10 keeps its price file on disk, but the API only serves instruments in the current universe.
+
+## 7. Data quality notes
+
+- Yahoo occasionally returns a row whose close sits just outside that day's high/low (KRX listings, thin London ETF lines, and crypto's still-forming current-day candle). The Yahoo adapter widens high/low to contain open and close and logs how many rows it changed, rather than dropping the whole asset at validation.
+- Private labs have no price series, so AI events for xAI or Mistral are shown on the timeline but not measured in the event study.

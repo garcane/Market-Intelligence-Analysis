@@ -71,8 +71,12 @@ def companies() -> pd.DataFrame:
     return read_csv(REFERENCE_DIR / "companies.csv")
 
 
-def company_ai_categories() -> pd.DataFrame:
-    return read_csv(REFERENCE_DIR / "company_ai_categories.csv")
+def themes() -> pd.DataFrame:
+    return read_csv(REFERENCE_DIR / "themes.csv")
+
+
+def funds() -> pd.DataFrame:
+    return read_csv(REFERENCE_DIR / "funds.csv")
 
 
 def crypto_assets() -> pd.DataFrame:
@@ -84,10 +88,63 @@ def events() -> pd.DataFrame:
     return df if df is not None else pd.DataFrame()
 
 
+def detected_events() -> pd.DataFrame:
+    df = read_csv(PROCESSED_DIR / "detected_events.csv")
+    return df if df is not None else pd.DataFrame()
+
+
+# --- the tracked universe -------------------------------------------------------
+
+UNIVERSE_FILES = ("companies.csv", "funds.csv", "themes.csv", "crypto_assets.csv")
+KIND = {"equity": "stock", "etf": "etf", "index": "index", "crypto": "crypto"}
+
+
+def _build_universe() -> dict[str, dict]:
+    from src.ingestion.universe import build_market_universe, market_categories
+
+    table = build_market_universe()
+    categories = market_categories(table)
+    crypto = crypto_assets()
+    ranks = dict(zip(crypto["symbol"], crypto["rank"])) if crypto is not None and "rank" in crypto else {}
+    return {
+        row.market_id: {
+            "name": row.name,
+            "kind": KIND.get(row.asset_type, row.asset_type),
+            "currency": row.currency if isinstance(row.currency, str) else None,
+            "exchange": row.exchange if isinstance(row.exchange, str) else None,
+            "company_id": row.company_id if isinstance(row.company_id, str) else None,
+            "rank": ranks.get(row.market_id),
+            **categories[row.market_id],
+        }
+        for row in table.itertuples()
+    }
+
+
+def universe() -> dict[str, dict]:
+    """market_id -> name, kind (stock | etf | index | crypto), currency,
+    categories and theme segments, rebuilt whenever a reference table changes."""
+    stamp = tuple((REFERENCE_DIR / f).stat().st_mtime_ns for f in UNIVERSE_FILES)
+    key = ("universe", str(REFERENCE_DIR))
+    with _lock:
+        hit = _cache.get(key)
+    if hit and hit[0] == stamp:
+        return hit[1]
+    value = _build_universe()
+    with _lock:
+        _cache[key] = (stamp, value)
+    return value
+
+
 # --- market, news and sentiment ------------------------------------------------
 
 def market_ids() -> list[str]:
-    return sorted(p.stem for p in MARKET_DIR.glob("*.parquet")) if MARKET_DIR.exists() else []
+    """Ingested instruments that are in the current universe. A price file
+    left behind by an instrument that has since left the universe (e.g. a coin
+    that dropped out of the crypto top 10) is not served."""
+    if not MARKET_DIR.exists():
+        return []
+    tracked = universe()
+    return sorted(p.stem for p in MARKET_DIR.glob("*.parquet") if p.stem in tracked)
 
 
 def market_prices(market_id: str, excluded_sources: frozenset[str] = frozenset()) -> pd.DataFrame | None:

@@ -9,7 +9,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from api import data
 from api.deps import get_settings
 from api.settings import Settings
-from src.analytics.indices import BENCHMARK_IDS
 from src.analytics.market_stats import add_returns, compute_market_stats, summary_stats
 from src.features.target import MODELING_MARKET_IDS
 
@@ -19,13 +18,17 @@ SPARK_POINTS = 60
 SPARK_DAYS = 180
 
 
-def asset_kind(market_id: str) -> str:
-    crypto = data.crypto_assets()
-    if crypto is not None and market_id in set(crypto["symbol"]):
-        return "crypto"
-    if market_id in BENCHMARK_IDS:
-        return "benchmark"
-    return "equity"
+def describe(market_id: str) -> dict:
+    """Name, kind (stock | etf | index | crypto), currency and categories."""
+    info = data.universe().get(market_id, {})
+    return {
+        "name": info.get("name") or market_id,
+        "kind": info.get("kind", "stock"),
+        "currency": info.get("currency"),
+        "categories": info.get("categories", []),
+        "segments": info.get("segments", []),
+        "rank": info.get("rank"),
+    }
 
 
 def _load(market_id: str, settings: Settings) -> pd.DataFrame:
@@ -53,7 +56,7 @@ def list_markets(settings: Settings = Depends(get_settings)) -> list[dict]:
         stats = compute_market_stats(df)
         rows.append({
             "market_id": market_id,
-            "kind": asset_kind(market_id),
+            **describe(market_id),
             "modelled": market_id in MODELING_MARKET_IDS,
             "last_close": float(stats["close"].iloc[-1]),
             "change_1d": float(stats["return_1d"].iloc[-1]),
@@ -92,7 +95,7 @@ def prices(market_id: str, start: date | None = None, end: date | None = None,
     full = data.market_prices(market_id, settings.excluded_sources)
     return data.clean({
         "market_id": market_id,
-        "kind": asset_kind(market_id),
+        **describe(market_id),
         "available_range": [str(full["date"].min().date()), str(full["date"].max().date())],
         "sources": sorted(df["source"].dropna().unique().tolist()) if "source" in df else [],
         "summary": summary_stats(stats),

@@ -1,21 +1,26 @@
 import { createColumnHelper } from "@tanstack/react-table";
 import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { useCorrelation, useMarkets } from "../api/client";
-import type { MarketRow } from "../api/types";
+import type { AssetKind, MarketRow } from "../api/types";
 import { Chart, type ChartOption } from "../components/Chart";
 import { DataTable } from "../components/DataTable";
-import { Card, PageHeader, QueryState } from "../components/ui";
+import { Card, PageHeader, PillTabs, QueryState } from "../components/ui";
+import { asCategory, CATEGORIES, type Category, inCategory, KIND_LABEL } from "../lib/assets";
 import { AXIS, TOOLTIP } from "../lib/chartTheme";
 import { correlationHeatmap } from "../lib/charts";
 import { pct } from "../lib/format";
 
-const KIND_COLOR = { equity: "#4262ff", crypto: "#fcb900", benchmark: "#6b6f7e" } as const;
+const KIND_COLOR: Record<AssetKind, string> = { stock: "#4262ff", etf: "#0fbcb0", index: "#6b6f7e", crypto: "#fcb900" };
+const MAX_LABELLED_POINTS = 30;
 const col = createColumnHelper<MarketRow & { sharpe: number | null }>();
 
 const columns = [
-  col.accessor("market_id", { header: "Asset", cell: (c) => <span className="font-semibold">{c.getValue()}</span> }),
+  col.accessor("market_id", {
+    header: "Asset",
+    cell: (c) => <span className="font-semibold" title={c.row.original.name}>{c.getValue()}</span>,
+  }),
   col.accessor("annualized_volatility", { header: "Ann. vol", cell: (c) => pct(c.getValue()), meta: { align: "right" } }),
   col.accessor("max_drawdown", { header: "Max DD", cell: (c) => <span className="text-loss">{pct(c.getValue())}</span>, meta: { align: "right" } }),
   col.accessor("sharpe", { header: "Sharpe*", cell: (c) => c.getValue()?.toFixed(2) ?? "—", meta: { align: "right" } }),
@@ -34,12 +39,13 @@ function riskReturn(rows: MarketRow[]): ChartOption {
       axisLabel: { ...AXIS.axisLabel, formatter: (v: number) => `${Math.round(v * 100)}%` } },
     yAxis: { type: "value", scale: true, ...AXIS,
       axisLabel: { ...AXIS.axisLabel, formatter: (v: number) => `${(v * 100).toFixed(2)}%` } },
-    series: (["equity", "crypto", "benchmark"] as const).map((kind) => ({
-      name: kind,
+    legend: { top: 0, right: 0, textStyle: { color: "#555a6a" } },
+    series: (["stock", "etf", "index", "crypto"] as const).map((kind) => ({
+      name: KIND_LABEL[kind],
       type: "scatter",
       symbolSize: 14,
       itemStyle: { color: KIND_COLOR[kind], opacity: 0.85 },
-      label: { show: true, formatter: (p: { data: [number, number, string] }) => p.data[2], position: "right", fontSize: 11, color: "#2c2c34" },
+      label: { show: rows.length <= MAX_LABELLED_POINTS, formatter: (p: { data: [number, number, string] }) => p.data[2], position: "right", fontSize: 11, color: "#2c2c34" },
       data: rows.filter((r) => r.kind === kind).map((r) => [r.annualized_volatility, r.mean_daily_return, r.market_id]),
     })),
   };
@@ -47,15 +53,18 @@ function riskReturn(rows: MarketRow[]): ChartOption {
 
 export default function Risk() {
   const markets = useMarkets();
-  const correlation = useCorrelation();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const category = asCategory(params.get("category"));
+  const selected = useMemo(() => (markets.data ?? []).filter((m) => inCategory(m, category)), [markets.data, category]);
+  const correlation = useCorrelation(markets.data ? selected.map((m) => m.market_id) : undefined);
 
-  const rows = useMemo(() => (markets.data ?? []).map((m) => {
+  const rows = useMemo(() => selected.map((m) => {
     const days = m.kind === "crypto" ? 365 : 252;
     const vol = m.annualized_volatility;
     return { ...m, sharpe: vol && m.mean_daily_return !== null ? (m.mean_daily_return * days) / vol : null };
-  }), [markets.data]);
-  const scatter = useMemo(() => riskReturn(markets.data ?? []), [markets.data]);
+  }), [selected]);
+  const scatter = useMemo(() => riskReturn(selected), [selected]);
   const heatmap = useMemo(
     () => (correlation.data ? correlationHeatmap(correlation.data.ids, correlation.data.matrix) : null),
     [correlation.data],
@@ -67,6 +76,14 @@ export default function Risk() {
         title="Risk analytics"
         description="Volatility, drawdowns and how closely assets move together. Crypto trades every day, so its figures annualise over 365 days."
       />
+      <div className="mb-4">
+        <PillTabs<Category>
+          label="Category"
+          value={category}
+          onChange={(c) => setParams((p) => { if (c === "All") p.delete("category"); else p.set("category", c); return p; }, { replace: true })}
+          options={CATEGORIES.map((c) => ({ value: c, label: c }))}
+        />
+      </div>
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-5">
         <Card title="Risk vs return" subtitle="Annualised volatility against mean daily return, per asset over its full history" className="xl:col-span-3">
           <QueryState query={markets} skeleton="h-[560px]">

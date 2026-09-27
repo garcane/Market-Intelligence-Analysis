@@ -1,20 +1,29 @@
 import { createColumnHelper } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { useMarkets, useMeta } from "../api/client";
-import type { AssetKind, MarketRow } from "../api/types";
+import type { MarketRow } from "../api/types";
 import { DataTable } from "../components/DataTable";
 import { Sparkline } from "../components/Sparkline";
 import { Badge, Card, Delta, PageHeader, PillTabs, QueryState, StatCard } from "../components/ui";
+import { asCategory, CATEGORIES, type Category, currencySuffix, inCategory, KIND_LABEL, KIND_TONE } from "../lib/assets";
 import { compact, pct, price, shortDate } from "../lib/format";
 
-const KIND_TONE = { equity: "blue", crypto: "yellow", benchmark: "neutral" } as const;
 const col = createColumnHelper<MarketRow>();
 
 const columns = [
+  col.accessor("name", {
+    header: "Name",
+    cell: (c) => (
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="max-w-[12rem] truncate font-medium" title={c.getValue()}>{c.getValue()}</span>
+        {c.row.original.rank !== null && <Badge tone="yellow">#{c.row.original.rank}</Badge>}
+      </div>
+    ),
+  }),
   col.accessor("market_id", {
-    header: "Asset",
+    header: "Ticker",
     cell: (c) => (
       <div className="flex items-center gap-2">
         <span className="font-semibold">{c.getValue()}</span>
@@ -22,8 +31,17 @@ const columns = [
       </div>
     ),
   }),
-  col.accessor("kind", { header: "Type", cell: (c) => <Badge tone={KIND_TONE[c.getValue()]}>{c.getValue()}</Badge> }),
-  col.accessor("last_close", { header: "Last close", cell: (c) => price(c.getValue()), meta: { align: "right" } }),
+  col.accessor("kind", { header: "Type", cell: (c) => <Badge tone={KIND_TONE[c.getValue()]}>{KIND_LABEL[c.getValue()]}</Badge> }),
+  col.accessor("last_close", {
+    header: "Last close",
+    cell: (c) => (
+      <span className="whitespace-nowrap">
+        {price(c.getValue())}
+        <span className="text-[12px] text-stone">{currencySuffix(c.row.original.currency)}</span>
+      </span>
+    ),
+    meta: { align: "right" },
+  }),
   col.accessor("change_1d", { header: "1D", cell: (c) => <Delta value={c.getValue()} digits={2} />, meta: { align: "right" } }),
   col.accessor("total_return", { header: "Total return", cell: (c) => <Delta value={c.getValue()} />, meta: { align: "right" } }),
   col.accessor("annualized_volatility", { header: "Ann. vol", cell: (c) => pct(c.getValue()), meta: { align: "right" } }),
@@ -34,8 +52,6 @@ const columns = [
   }),
   col.accessor("spark", { header: "6 months", enableSorting: false, cell: (c) => <Sparkline values={c.getValue()} /> }),
 ];
-
-type Filter = "all" | AssetKind;
 
 function historyMonths(rows: MarketRow[] | undefined): string {
   if (!rows?.length) return "—";
@@ -48,15 +64,16 @@ export default function Overview() {
   const markets = useMarkets();
   const meta = useMeta();
   const navigate = useNavigate();
-  const [filter, setFilter] = useState<Filter>("all");
+  const [params, setParams] = useSearchParams();
+  const filter = asCategory(params.get("category"));
 
   const best = useMemo(() => {
-    const rows = (markets.data ?? []).filter((m) => m.kind !== "benchmark" && m.total_return !== null);
+    const rows = (markets.data ?? []).filter((m) => !m.categories.includes("Benchmarks") && m.total_return !== null);
     return rows.sort((a, b) => (b.total_return ?? 0) - (a.total_return ?? 0))[0];
   }, [markets.data]);
 
   const rows = useMemo(
-    () => (markets.data ?? []).filter((m) => filter === "all" || m.kind === filter),
+    () => (markets.data ?? []).filter((m) => inCategory(m, filter)),
     [markets.data, filter],
   );
 
@@ -64,7 +81,7 @@ export default function Overview() {
     <>
       <PageHeader
         title="AI market overview"
-        description="How AI-exposed equities, crypto assets and their benchmarks have moved, with the news, sentiment and models built on top of them."
+        description="How stocks across the AI supply chain and energy, the top cryptocurrencies and their benchmarks have moved, with the news, sentiment and models built on top of them."
       />
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
@@ -98,16 +115,14 @@ export default function Overview() {
         title="Assets"
         subtitle="Returns and risk over each asset's full history. Select a row for charts."
         action={
-          <PillTabs<Filter>
-            label="Asset type"
+          <PillTabs<Category>
+            label="Category"
             value={filter}
-            onChange={setFilter}
-            options={[
-              { value: "all", label: "All" },
-              { value: "equity", label: "Equities" },
-              { value: "crypto", label: "Crypto" },
-              { value: "benchmark", label: "Benchmarks" },
-            ]}
+            onChange={(c) => setParams((p) => { if (c === "All") p.delete("category"); else p.set("category", c); return p; }, { replace: true })}
+            options={CATEGORIES.map((c) => ({
+              value: c,
+              label: <>{c} <span className="opacity-60">{(markets.data ?? []).filter((m) => inCategory(m, c)).length}</span></>,
+            }))}
           />
         }
       >

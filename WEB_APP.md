@@ -78,13 +78,14 @@ seconds.
 
 | Page | Endpoint(s) | Notes |
 |---|---|---|
-| Overview | `/api/markets`, `/api/meta` | Sortable asset table with 6-month sparklines |
+| Overview | `/api/markets`, `/api/meta` | Sortable asset table (name, ticker, type) with 6-month sparklines, filtered by category: Stocks, AI Supply Chain, Energy, Benchmarks, Crypto |
 | AI market | `/api/indices` | Index returns and the 30-day correlation with SPX, computed live |
 | Stock performance | `/api/markets/{id}/prices?start&end` | Range presets, zoom, drawdown |
-| Risk analytics | `/api/markets`, `/api/markets/correlation` | Risk-return scatter and correlation heatmap |
+| Risk analytics | `/api/markets`, `/api/markets/correlation` | Risk-return scatter and correlation heatmap, filtered by category |
 | Company explorer | `/api/companies` | Filters are kept in the URL |
-| AI supply chain | `/api/companies` | Companies grouped by value-chain stage |
-| AI events | `/api/events` | CAAR chart and per-event abnormal returns |
+| AI supply chain | `/api/companies`, `/api/markets` | Semiconductors, hyperscalers, neoclouds, data centres, power and networking, each member with live price stats |
+| Energy | `/api/companies`, `/api/markets` | Nuclear and uranium, clean energy, storage, power generation, oil and gas, including thematic ETFs |
+| AI events | `/api/events` | Curated and news-detected AI events with type/source filters and search; CAAR chart and per-event abnormal returns |
 | Sentiment | `/api/sentiment/summary?model&labels` | The label filter applies to every chart. It was never applied in the Streamlit app. Also shows news coverage by split. |
 | News feed | `/api/news?q&entity&source&label&from&to&page` | New page |
 | Model performance | `/api/models/report`, `/api/figures/{name}` | Validation split only |

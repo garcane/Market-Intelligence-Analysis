@@ -1,8 +1,22 @@
 # EVENT_STUDY.md — Event-Driven Financial Analysis (Stage 11)
 
-## Event Catalog: a Curated Seed List, Not a Comprehensive Feed
+## Event Catalog: Curated Events plus News-Detected Events
 
-`data/reference/events.csv` holds **6 manually-curated, real, well-documented events** — not an ingested or automated catalog. This is a deliberate scope decision, for the same reason Stage 6 excluded fabricated AI-event features: no live event-ingestion pipeline exists (`fact_model_release`/`fact_company_event` from `DATA_MODEL.md` remain unpopulated — see `CHECKPOINT.md`'s Stage 6 entry), and inventing plausible-sounding event dates would be fabrication. Every date below is a specific, independently verifiable public event chosen only where confidence in the exact date was high; none fall after this assistant's January 2026 knowledge cutoff.
+The timeline has two sources.
+
+**Curated — `data/reference/events.csv` (97 events, Nov 2022 → Sep 2026).** These cover model releases from OpenAI, Anthropic, Google, Meta, xAI, DeepSeek, Alibaba (Qwen), Moonshot and Mistral, plus major investments, partnerships, acquisitions, chips, data-centre and power deals, IPOs and market reactions. Each has an `organisation` and, where a listed company is directly implicated, a `primary_market_id`. Events before 2026 use well-documented public dates. Events in 2026 were taken from the ingested news store and dated to the first headline reporting them (the description says so), which can be a day after the actual release. The event study measures every curated event that has a listed company and falls inside the price history.
+
+**Detected — `data/processed/detected_events.csv` (`python -m src.analytics.event_detection`).** Rules over news headlines find new model releases (by model name, e.g. "Claude Opus 5", "GPT-6"), plus acquisitions, investments, partnerships, chips and data-centre build-outs:
+
+- Deals must state a material size (billions of dollars or gigawatts).
+- The organisation must lead the headline.
+- Stock commentary and portfolio filings are filtered out.
+- A detected event needs several articles.
+- It is dropped when a curated event already covers it (same organisation within 3 days, or the same model name).
+
+Detected events appear on the timeline marked "from news" but are not included in the CAAR, so the curated catalogue stays the controlled sample.
+
+The original six seed events are still in the catalogue:
 
 | Event | Date | Primary ticker | Type |
 |---|---|---|---|

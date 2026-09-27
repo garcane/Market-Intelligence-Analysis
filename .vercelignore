@@ -1,0 +1,37 @@
+# Allowlist for `vercel deploy`: upload only what the read-only web app needs.
+# Mirrors .dockerignore. Never uploads .env, the virtualenv, raw provider
+# caches or the full-pipeline requirements.txt (Vercel installs pyproject.toml).
+/*
+!/app.py
+!/pyproject.toml
+!/api
+!/src
+
+# the frontend is built locally (cd web && npm run build) and served by FastAPI
+!/web
+/web/*
+!/web/dist
+
+# data snapshot: exactly what api/data.py reads
+!/data
+/data/*
+!/data/reference
+!/data/processed
+!/data/raw
+/data/raw/*
+!/data/raw/market_prices
+!/data/raw/sentiment
+!/data/raw/news
+/data/raw/news/*
+!/data/raw/news/news.parquet
+
+!/outputs
+/outputs/*
+!/outputs/figures
+!/outputs/model_results
+/outputs/model_results/*
+!/outputs/model_results/models
+
+**/__pycache__
+**/.env
+**/.env.*

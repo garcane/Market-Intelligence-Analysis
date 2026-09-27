@@ -1,0 +1,23 @@
+# Runtime dependencies for the Vercel deployment of the web app (app.py). They
+# mirror requirements-web.txt (the Docker image), except that xgboost-cpu
+# replaces xgboost: the same library and version, without the CUDA/NCCL
+# libraries a serverless function can't use. Versions are pinned to the
+# environment that trained the saved models, whose pickles must load unchanged.
+# The full research pipeline still installs from requirements.txt.
+[project]
+name = "ai-market-intelligence"
+version = "1.0.0"
+requires-python = "==3.13.*"
+dependencies = [
+    "fastapi==0.141.1",
+    "pandas==3.0.5",
+    "numpy==2.5.3",
+    "pyarrow==25.0.1",
+    "scipy==1.18.1",
+    "scikit-learn==1.9.1",
+    "xgboost-cpu==3.4.1",
+    "joblib==1.6.0",
+    "python-dotenv==1.2.3",
+    "truststore==0.10.4",
+    "requests==2.34.2",
+]

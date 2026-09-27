@@ -6,6 +6,7 @@ import { Chart } from "../components/Chart";
 import { Badge, Card, Delta, PageHeader, PillTabs, QueryState, Select, StatCard } from "../components/ui";
 import { GAIN, LOSS } from "../lib/chartTheme";
 import { numFmt, pctFmt, timeSeries } from "../lib/charts";
+import { currencySuffix, KIND_LABEL, KIND_TONE } from "../lib/assets";
 import { pct, price, shortDate } from "../lib/format";
 
 const RANGES = ["1M", "3M", "6M", "1Y", "YTD", "ALL"] as const;
@@ -45,7 +46,7 @@ export default function Stocks() {
   }, [prices.data, id]);
 
   const options = (markets.data ?? [])
-    .map((m) => ({ value: m.market_id, label: `${m.market_id} · ${m.kind}` }))
+    .map((m) => ({ value: m.market_id, label: `${m.market_id} · ${m.name}` }))
     .sort((a, b) => a.value.localeCompare(b.value));
 
   const s = prices.data?.summary;
@@ -53,15 +54,27 @@ export default function Stocks() {
   return (
     <>
       <PageHeader
-        title={`${id} performance`}
-        description="Price, cumulative return and drawdown over the selected range. Drag the slider under the price chart to zoom."
+        title={market ? `${market.name} (${id})` : `${id} performance`}
+        description={
+          <>
+            {market && (
+              <span className="mb-2 flex flex-wrap gap-1.5">
+                <Badge tone={KIND_TONE[market.kind]}>{KIND_LABEL[market.kind]}</Badge>
+                {market.segments.length
+                  ? market.segments.map((s) => <Badge key={s}>{s}</Badge>)
+                  : market.categories.map((c) => <Badge key={c}>{c}</Badge>)}
+              </span>
+            )}
+            Price, cumulative return and drawdown over the selected range. Drag the slider under the price chart to zoom.
+          </>
+        }
         actions={
           <Select
             label="Asset"
             value={id}
             onChange={(v) => navigate({ pathname: `/stocks/${v}`, search: search.toString() })}
             options={options.length ? options : [{ value: id, label: id }]}
-            className="w-52"
+            className="w-72"
           />
         }
       />
@@ -86,7 +99,7 @@ export default function Stocks() {
           </div>
 
           <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-            <StatCard tone="yellow" label="Last close" value={price(prices.data?.rows.at(-1)?.close)}
+            <StatCard tone="yellow" label={`Last close${currencySuffix(market?.currency)}`} value={price(prices.data?.rows.at(-1)?.close)}
               hint={<Delta value={prices.data?.rows.at(-1)?.return_1d ?? null} digits={2} />} />
             <StatCard tone="teal" label="Return over range" value={pct(s?.total_return, 1, true)} />
             <StatCard tone="lavender" label="Annualised volatility" value={pct(s?.annualized_volatility)} />

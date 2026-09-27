@@ -36,9 +36,12 @@ REFERENCE_DIR = DATA_DIR / "reference"
 OUTPUTS_DIR = ROOT_DIR / "outputs"
 CACHE_DIR = ROOT_DIR / ".cache"
 
-RAW_DIR.mkdir(parents=True, exist_ok=True)
-PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
+for _dir in (RAW_DIR, PROCESSED_DIR, CACHE_DIR):
+    try:
+        _dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        # Read-only deployments (Vercel) ship a data snapshot and never write.
+        pass
 
 
 def _ensure_curl_ca_bundle() -> None:

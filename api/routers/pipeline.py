@@ -29,8 +29,10 @@ LOG_DIR = CACHE_DIR / "pipeline_logs"
 TAIL_LINES = 80
 
 JOBS: dict[str, dict] = {
+    "crypto_universe": {"module": "src.ingestion.crypto_universe", "label": "Rank crypto top 10",
+                        "description": "Re-rank the top 10 cryptocurrencies by market cap from CoinCodex (ingest also does this)."},
     "ingest": {"module": "src.ingestion.run_ingestion", "label": "Ingest prices and news",
-               "description": "Refresh prices for the full universe, plus current news (Google News, Yahoo Finance)."},
+               "description": "Refresh the crypto top 10, prices for the full universe, plus current news (Google News, Yahoo Finance)."},
     "news_backfill": {"module": "src.ingestion.run_news_backfill", "label": "News backfill",
                       "description": "Backfill older news (Finnhub, Alpha Vantage) within today's quotas and collect the latest Yahoo Finance ticker news. Run daily."},
     "sentiment": {"module": "src.sentiment.run_sentiment", "label": "Score sentiment",
@@ -47,6 +49,8 @@ JOBS: dict[str, dict] = {
                 "description": "Recompute importance, SHAP and permutation importance."},
     "indices": {"module": "src.analytics.run_indices", "label": "AI indices",
                 "description": "Rebuild the thematic AI indices report."},
+    "event_detection": {"module": "src.analytics.event_detection", "label": "Detect AI events",
+                        "description": "Find new model releases, deals, chips and data-centre announcements in the news."},
     "event_study": {"module": "src.analytics.run_event_study", "label": "Event study",
                     "description": "Recompute abnormal returns around AI events."},
 }

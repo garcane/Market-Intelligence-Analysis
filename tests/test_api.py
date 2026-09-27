@@ -35,7 +35,9 @@ def _prices(market_id, seed, source="yahoo_finance"):
 def data_dir(tmp_path, monkeypatch):
     market = tmp_path / "market_prices"
     market.mkdir()
-    for i, mid in enumerate(["NVDA", "MSFT", "BTC", "SPX"]):
+    # OLDCOIN stands in for an instrument that has left the universe (e.g. a
+    # coin that dropped out of the crypto top 10): its file stays on disk.
+    for i, mid in enumerate(["NVDA", "MSFT", "BTC", "SPX", "OLDCOIN"]):
         _prices(mid, i).to_parquet(market / f"{mid}.parquet")
     # TSM's last 10 rows came from a provider whose licence forbids redistribution
     tsm = _prices("TSM", 9)
@@ -112,7 +114,9 @@ def test_meta_reports_mode_and_freshness(local):
 def test_markets_list_has_stats_and_kinds(local):
     rows = {r["market_id"]: r for r in local.get("/api/markets").json()}
     assert set(rows) == {"NVDA", "MSFT", "BTC", "SPX", "TSM"}
-    assert rows["BTC"]["kind"] == "crypto" and rows["SPX"]["kind"] == "benchmark" and rows["NVDA"]["kind"] == "equity"
+    assert rows["BTC"]["kind"] == "crypto" and rows["SPX"]["kind"] == "index" and rows["NVDA"]["kind"] == "stock"
+    assert rows["NVDA"]["name"] == "NVIDIA" and "AI Supply Chain" in rows["NVDA"]["categories"]
+    assert rows["SPX"]["categories"] == ["Benchmarks"] and rows["BTC"]["categories"] == ["Crypto"]
     assert rows["NVDA"]["modelled"] and not rows["SPX"]["modelled"]
     assert {"total_return", "max_drawdown", "annualized_volatility", "spark"} <= set(rows["NVDA"])
 
@@ -171,6 +175,27 @@ def test_explainability_strips_transformer_prefixes(local):
     assert body["importance"]["xgboost"] == [{"feature": "rsi_14d", "importance": 0.2}]
     # logistic regression reports signed coefficients; the sign is kept
     assert body["importance"]["logistic_regression"] == [{"feature": "momentum_10d", "importance": -0.5}]
+
+
+def test_companies_expose_themes_with_priced_members(local):
+    body = local.get("/api/companies").json()
+    assert body["themes"][0] == "AI Supply Chain" and "Energy" in body["themes"]
+    assert body["segments"]["AI Supply Chain"] == ["Semiconductors", "Hyperscalers", "Neoclouds",
+                                                   "Data Centres", "Power", "Networking"]
+    nvda = next(m for m in body["theme_members"] if m["ticker"] == "NVDA")
+    assert nvda["segment"] == "Semiconductors" and nvda["ingested"] is True
+    assert any(m["kind"] == "etf" and m["theme"] == "Energy" for m in body["theme_members"])
+
+
+def test_events_merge_curated_and_news_detected(local, data_dir):
+    pd.DataFrame({"event_id": ["news_model_release_x_20260101"], "event_date": ["2026-01-01"],
+                  "event_type": ["model_release"], "organisation": ["openai"], "primary_market_id": ["MSFT"],
+                  "title": ["X release"], "description": ["Detected from 3 headlines"], "n_articles": [3],
+                  "first_headline": ["OpenAI launches X"]}).to_csv(data_dir / "processed" / "detected_events.csv", index=False)
+    events = local.get("/api/events").json()["events"]
+    sources = {e["event_id"]: e["source"] for e in events}
+    assert sources["news_model_release_x_20260101"] == "news" and sources["gpt4o_launch"] == "curated"
+    assert all("first_headline" not in e for e in events)
 
 
 def test_events_include_caar_series(local):

@@ -1,4 +1,4 @@
-"""Companies, AI supply-chain categories, thematic indices and AI events."""
+"""Companies, themes (AI supply chain, energy, ...), thematic indices and AI events."""
 from __future__ import annotations
 
 import pandas as pd
@@ -17,19 +17,40 @@ router = APIRouter(prefix="/api", tags=["reference"])
 @router.get("/companies")
 def companies() -> dict:
     comp = data.companies()
-    cats = data.company_ai_categories()
+    themes = data.themes()
+    funds = data.funds()
     ingested = set(data.market_ids())
-    by_company = cats.groupby("company_id")["ai_category"].apply(lambda s: sorted(set(s))).to_dict()
+
+    # themes.csv lists segments in display order (upstream to downstream).
+    theme_order = list(dict.fromkeys(themes["theme"]))
+    segments = {t: list(dict.fromkeys(themes.loc[themes["theme"] == t, "segment"])) for t in theme_order}
+
+    by_entity = themes.groupby("entity_id")
     rows = comp.copy()
-    rows["ai_categories"] = rows["company_id"].map(lambda c: by_company.get(c, []))
+    rows["themes"] = rows["company_id"].map(
+        lambda c: list(dict.fromkeys(by_entity.get_group(c)["theme"])) if c in by_entity.groups else [])
+    rows["segments"] = rows["company_id"].map(
+        lambda c: [f"{t} / {s}" for t, s in zip(by_entity.get_group(c)["theme"], by_entity.get_group(c)["segment"])]
+        if c in by_entity.groups else [])
     rows["ingested"] = rows["ticker"].isin(ingested)
-    members = cats.merge(comp[["company_id", "company_name", "ticker", "country", "region"]],
-                         on="company_id", how="left")
+
+    # One row per (entity, theme, segment): companies and funds alike, each
+    # linked to its market_id so every member is a priced, analysable asset.
+    entities = pd.concat([
+        pd.DataFrame({"entity_id": comp["company_id"], "name": comp["company_name"], "ticker": comp["ticker"],
+                      "country": comp["country"], "region": comp["region"],
+                      "kind": comp["ticker"].map(lambda t: "stock" if isinstance(t, str) else "private")}),
+        pd.DataFrame({"entity_id": funds["fund_id"], "name": funds["fund_name"], "ticker": funds["ticker"],
+                      "country": None, "region": None, "kind": funds["asset_class"]}),
+    ], ignore_index=True)
+    members = themes.merge(entities, on="entity_id", how="left")
+    members["ingested"] = members["ticker"].isin(ingested)
     return data.clean({
         "companies": data.records(rows, date_cols=()),
-        "categories": sorted(cats["ai_category"].dropna().unique().tolist()),
+        "themes": theme_order,
+        "segments": segments,
         "regions": sorted(comp["region"].dropna().unique().tolist()),
-        "category_members": data.records(members, date_cols=()),
+        "theme_members": data.records(members, date_cols=()),
     })
 
 
@@ -93,6 +114,12 @@ def _event_windows(outcomes: list[dict], benchmark: str | None, window: int | No
 @router.get("/events")
 def events(settings: Settings = Depends(get_settings)) -> dict:
     ev = data.events()
+    if not ev.empty:
+        ev = ev.assign(source="curated")
+    detected = data.detected_events()
+    if not detected.empty:
+        detected = detected.assign(source="news").drop(columns=["first_headline"], errors="ignore")
+        ev = pd.concat([ev, detected], ignore_index=True)
     report = data.processed_json("event_study_report.json") or {}
     caar = data.processed_csv("event_study_caar.csv")
     caar_rows = []

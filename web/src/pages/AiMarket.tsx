@@ -11,8 +11,8 @@ import { humanize, num, pct } from "../lib/format";
 
 type Row = IndexSummary & { name: string; isIndex: boolean };
 const col = createColumnHelper<Row>();
-const INDEX_BG = ["bg-brand-yellow", "bg-teal-light", "bg-rose-light"];
-const BENCHMARKS = ["SPX", "NASDAQ", "SOXX"];
+const INDEX_BG = ["bg-brand-yellow", "bg-teal-light", "bg-rose-light", "bg-lavender"];
+const BENCHMARKS = ["SPX", "NDX", "SOXX"];
 
 const columns = [
   col.accessor("name", {
@@ -59,12 +59,12 @@ export default function AiMarket() {
     <>
       <PageHeader
         title="AI market"
-        description="Three equal-weighted thematic indices built from ingested constituents, compared with broad-market, semiconductor and crypto benchmarks."
+        description="Equal-weighted thematic indices (AI infrastructure, platforms, model providers and AI power) built from ingested constituents, compared with the S&P 500, Nasdaq-100, semiconductor and crypto benchmarks."
       />
       <QueryState query={indices} skeleton="h-[600px]">
         {(d) => (
           <>
-            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               {view!.indexNames.map((name, i) => (
                 <div key={name} className={`rounded-[28px] p-6 ${INDEX_BG[i % INDEX_BG.length]}`}>
                   <div className="text-[13px] font-medium text-charcoal/80">{humanize(name)}</div>

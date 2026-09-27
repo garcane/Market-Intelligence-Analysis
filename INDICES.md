@@ -2,7 +2,7 @@
 
 ## Construction
 
-Equal-weighted (no reliable market-cap series across this mixed equity+crypto universe, so equal-weight is the defensible, documented default — not a silent choice). Membership drawn from `data/reference/{companies,company_ai_categories}.csv` (Stage 1), restricted to what's actually been ingested for this stage (`data/raw/market_prices/`, expanded beyond the 6-asset modeling universe specifically for this analysis — see `CHECKPOINT.md`).
+Equal-weighted (no reliable market-cap series across this mixed equity+crypto universe, so equal-weight is the defensible, documented default — not a silent choice). Membership drawn from `data/reference/{companies,themes}.csv`, restricted to what's actually been ingested for this stage (`data/raw/market_prices/`, expanded beyond the 6-asset modeling universe specifically for this analysis — see `CHECKPOINT.md`).
 
 | Index | Constituents | Supply-chain category (Stage 1) |
 |---|---|---|
@@ -10,7 +10,9 @@ Equal-weighted (no reliable market-cap series across this mixed equity+crypto un
 | **AI Platform** | MSFT, AMZN, GOOGL, META, AAPL, ORCL | Cloud/AI Infrastructure, Consumer/Platform |
 | **AI Model Provider** | MSFT, GOOGL, META | Publicly-traded companies with significant foundation-model exposure. OpenAI/Anthropic/xAI/Mistral/DeepSeek and the other private labs from `UNIVERSE.md` are excluded here — no public price series exists for them, so they cannot be part of a price-based index. |
 
-Benchmarks: S&P 500 (`^GSPC`), Nasdaq Composite (`^IXIC`), iShares Semiconductor ETF (`SOXX`), BTC, ETH. All fetched via `src/analytics/fetch_benchmarks.py`, same date range (2023-06-01 → present) as the equity universe.
+Benchmarks: S&P 500 (`^GSPC`), Nasdaq-100 (`^NDX`, replacing the Nasdaq Composite used originally), iShares Semiconductor ETF (`SOXX`), BTC, ETH. The benchmark funds are listed in `data/reference/funds.csv` and ingested with the rest of the universe (`src/analytics/fetch_benchmarks.py` refreshes only them).
+
+A fourth index, **AI Power** (CEG, VST, GEV, VRT, ETN), tracks the power and electrical-equipment names supplying AI data centres.
 
 ## Results (2023-06-01 → 2026-09-15)
 

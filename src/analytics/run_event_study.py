@@ -45,9 +45,14 @@ def main() -> None:
 
     for _, row in events.iterrows():
         event_id, market_id, event_date = row["event_id"], row["primary_market_id"], row["event_date"]
+        entry = {"event_id": event_id, "market_id": market_id if pd.notna(market_id) else None,
+                 "event_date": event_date, "title": row["title"]}
+        if pd.isna(market_id):
+            # e.g. an xAI or Mistral release: no listed equity to measure against
+            entry["status"] = "SKIPPED_NO_MARKET"
+            report["events"].append(entry)
+            continue
         asset_df = load_returns(market_id)
-        entry = {"event_id": event_id, "market_id": market_id, "event_date": event_date,
-                 "title": row["title"]}
         if asset_df is None:
             entry["status"] = "SKIPPED_NOT_INGESTED"
             report["events"].append(entry)

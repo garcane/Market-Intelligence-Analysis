@@ -12,6 +12,7 @@ const Stocks = lazy(() => import("./pages/Stocks"));
 const Risk = lazy(() => import("./pages/Risk"));
 const Companies = lazy(() => import("./pages/Companies"));
 const SupplyChain = lazy(() => import("./pages/SupplyChain"));
+const Energy = lazy(() => import("./pages/Energy"));
 const Events = lazy(() => import("./pages/Events"));
 const Sentiment = lazy(() => import("./pages/Sentiment"));
 const News = lazy(() => import("./pages/News"));
@@ -44,6 +45,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="risk" element={<Risk />} />
             <Route path="companies" element={<Companies />} />
             <Route path="supply-chain" element={<SupplyChain />} />
+            <Route path="energy" element={<Energy />} />
             <Route path="events" element={<Events />} />
             <Route path="sentiment" element={<Sentiment />} />
             <Route path="news" element={<News />} />

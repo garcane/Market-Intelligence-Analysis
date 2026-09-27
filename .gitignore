@@ -30,3 +30,6 @@ outputs/model_results/
 # OS/editor
 .DS_Store
 .vscode/
+
+.vercel
+.env*
