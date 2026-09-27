@@ -10,12 +10,14 @@ import {
   LayoutDashboard,
   Lightbulb,
   Menu,
+  Moon,
   Network,
   Zap,
   Newspaper,
   PlayCircle,
   ShieldAlert,
   Smile,
+  Sun,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -24,6 +26,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { useMeta } from "../api/client";
 import { shortDate } from "../lib/format";
+import { useTheme } from "../lib/theme";
 import { Skeleton } from "./ui";
 
 interface NavItem {
@@ -76,8 +79,8 @@ const NAV: { group: string; items: NavItem[] }[] = [
 function Wordmark() {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="grid size-8 place-items-center rounded-lg bg-brand-yellow" aria-hidden>
-        <Activity className="size-4.5 text-ink" strokeWidth={2.5} />
+      <span className="grid size-8 place-items-center rounded-lg bg-[#ffd02f]" aria-hidden>
+        <Activity className="size-4.5 text-[#1c1c1e]" strokeWidth={2.5} />
       </span>
       <span className="text-[15px] leading-tight font-semibold">
         AI Market
@@ -107,7 +110,7 @@ function Nav({ pipelineEnabled, onNavigate }: { pipelineEnabled: boolean; onNavi
                     className={({ isActive }) =>
                       clsx(
                         "flex min-h-10 items-center gap-3 rounded-full px-3 text-[14px] font-medium transition-colors",
-                        isActive ? "bg-ink text-white" : "text-charcoal hover:bg-surface",
+                        isActive ? "bg-ink text-canvas" : "text-charcoal hover:bg-surface",
                       )
                     }
                   >
@@ -121,6 +124,27 @@ function Nav({ pipelineEnabled, onNavigate }: { pipelineEnabled: boolean; onNavi
         );
       })}
     </nav>
+  );
+}
+
+function ThemeToggle({ withLabel = false }: { withLabel?: boolean }) {
+  const { theme, toggle } = useTheme();
+  const dark = theme === "dark";
+  const Icon = dark ? Sun : Moon;
+  return (
+    <button
+      onClick={toggle}
+      aria-pressed={dark}
+      aria-label="Dark theme"
+      title={dark ? "Switch to light theme" : "Switch to dark theme"}
+      className={clsx(
+        "flex min-h-10 items-center gap-3 rounded-full border border-hairline text-[14px] font-medium text-charcoal transition-colors hover:bg-surface",
+        withLabel ? "w-full px-3" : "size-10 justify-center",
+      )}
+    >
+      <Icon className="size-4 shrink-0" aria-hidden />
+      {withLabel && (dark ? "Light theme" : "Dark theme")}
+    </button>
   );
 }
 
@@ -161,7 +185,7 @@ export function Layout() {
 
   return (
     <div className="min-h-dvh">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:text-white">
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:text-canvas">
         Skip to content
       </a>
 
@@ -169,7 +193,8 @@ export function Layout() {
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col gap-6 overflow-y-auto border-r border-hairline-soft bg-canvas px-4 py-5 lg:flex">
         <Wordmark />
         <Nav pipelineEnabled={pipelineEnabled} />
-        <div className="mt-auto">
+        <div className="mt-auto flex flex-col gap-3">
+          <ThemeToggle withLabel />
           <Freshness />
         </div>
       </aside>
@@ -177,14 +202,17 @@ export function Layout() {
       {/* mobile top bar + drawer */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-hairline-soft bg-canvas/95 px-4 backdrop-blur lg:hidden">
         <Wordmark />
-        <button
-          onClick={() => setOpen(true)}
-          aria-label="Open navigation"
-          aria-expanded={open}
-          className="grid size-10 place-items-center rounded-full border border-hairline"
-        >
-          <Menu className="size-5" aria-hidden />
-        </button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button
+            onClick={() => setOpen(true)}
+            aria-label="Open navigation"
+            aria-expanded={open}
+            className="grid size-10 place-items-center rounded-full border border-hairline"
+          >
+            <Menu className="size-5" aria-hidden />
+          </button>
+        </div>
       </header>
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">

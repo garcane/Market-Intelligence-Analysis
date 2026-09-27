@@ -11,7 +11,8 @@ import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useRef } from "react";
 
-import { PALETTE } from "../lib/chartTheme";
+import { darken, PALETTE } from "../lib/chartTheme";
+import { useTheme } from "../lib/theme";
 
 echarts.use([
   LineChart, BarChart, HeatmapChart, ScatterChart,
@@ -25,6 +26,7 @@ export type ChartOption = echarts.EChartsCoreOption;
 export function Chart({ option, height = 320, ariaLabel }: { option: ChartOption; height?: number; ariaLabel: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (!ref.current) return;
@@ -40,11 +42,9 @@ export function Chart({ option, height = 320, ariaLabel }: { option: ChartOption
   }, []);
 
   useEffect(() => {
-    chart.current?.setOption(
-      { color: PALETTE, textStyle: { fontFamily: "Figtree, sans-serif" }, animationDuration: 300, ...option },
-      { notMerge: true },
-    );
-  }, [option]);
+    const full = { color: PALETTE, textStyle: { fontFamily: "Figtree, sans-serif" }, animationDuration: 300, ...option };
+    chart.current?.setOption(theme === "dark" ? darken(full) : full, { notMerge: true });
+  }, [option, theme]);
 
   return <div ref={ref} role="img" aria-label={ariaLabel} style={{ height, width: "100%" }} />;
 }

@@ -15,6 +15,7 @@ import type {
   Predictions,
   Prices,
   SentimentSummary,
+  ValidationPredictions,
 } from "./types";
 
 export class ApiError extends Error {
@@ -102,6 +103,9 @@ export const useNews = (filters: NewsFilters) =>
     queryFn: get<NewsPage>("/api/news", { ...filters }),
     placeholderData: keepPreviousData,
   });
+
+export const useValidationPredictions = (h = 5) =>
+  useQuery({ queryKey: ["validation-predictions", h], queryFn: get<ValidationPredictions>("/api/models/validation-predictions", { h }) });
 
 export const useModelReport = (h = 5) =>
   useQuery({ queryKey: ["model-report", h], queryFn: get<ModelReport>("/api/models/report", { h }) });

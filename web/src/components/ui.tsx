@@ -82,7 +82,7 @@ const BADGE = {
   teal: "bg-teal-light text-moss",
   gain: "bg-gain-soft text-gain",
   loss: "bg-loss-soft text-loss",
-  dark: "bg-ink text-white",
+  dark: "bg-ink text-canvas",
 } as const;
 
 export type BadgeTone = keyof typeof BADGE;
@@ -108,7 +108,7 @@ export function Button({ variant = "primary", className, ...props }: ButtonHTMLA
       {...props}
       className={clsx(
         "inline-flex min-h-10 items-center justify-center gap-2 rounded-full px-5 text-[14px] font-medium transition-colors disabled:cursor-not-allowed",
-        variant === "primary" && "bg-ink text-white hover:bg-charcoal disabled:bg-hairline disabled:text-muted",
+        variant === "primary" && "bg-ink text-canvas hover:bg-charcoal disabled:bg-hairline disabled:text-muted",
         variant === "secondary" && "border border-hairline-strong bg-canvas text-ink hover:bg-surface disabled:text-muted",
         variant === "ghost" && "text-ink hover:bg-surface",
         className,
@@ -134,7 +134,7 @@ export function PillTabs<T extends string>({ options, value, onChange, label }: 
           onClick={() => onChange(o.value)}
           className={clsx(
             "min-h-9 rounded-full border px-4 text-[14px] font-medium transition-colors",
-            o.value === value ? "border-ink bg-ink text-white" : "border-hairline bg-canvas text-steel hover:text-ink",
+            o.value === value ? "border-ink bg-ink text-canvas" : "border-hairline bg-canvas text-steel hover:text-ink",
           )}
         >
           {o.label}
@@ -164,7 +164,7 @@ export function FilterPills({ options, selected, onChange, label }: {
             onClick={() => toggle(o)}
             className={clsx(
               "min-h-8 rounded-full border px-3 text-[13px] font-medium transition-colors",
-              on ? "border-ink bg-ink text-white" : "border-hairline-strong bg-canvas text-charcoal hover:bg-surface",
+              on ? "border-ink bg-ink text-canvas" : "border-hairline-strong bg-canvas text-charcoal hover:bg-surface",
             )}
           >
             {o}

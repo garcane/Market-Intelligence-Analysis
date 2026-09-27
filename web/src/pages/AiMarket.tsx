@@ -74,7 +74,7 @@ export default function AiMarket() {
                   <div className="mt-1 text-[13px] text-charcoal/70">cumulative · Sharpe {num(d.indices[name]?.sharpe_ratio)}</div>
                   <div className="mt-4 flex flex-wrap gap-1.5">
                     {d.index_members[name].map((m) => (
-                      <span key={m} className="rounded-full bg-white/70 px-2.5 py-0.5 text-[12px] font-semibold">{m}</span>
+                      <span key={m} className="rounded-full bg-canvas/70 px-2.5 py-0.5 text-[12px] font-semibold">{m}</span>
                     ))}
                   </div>
                 </div>

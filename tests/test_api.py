@@ -198,6 +198,15 @@ def test_events_merge_curated_and_news_detected(local, data_dir):
     assert all("first_headline" not in e for e in events)
 
 
+def test_validation_predictions_endpoint(local, data_dir):
+    assert local.get("/api/models/validation-predictions").status_code == 404
+    payload = {"horizon": 5, "n_validation": 3, "base_rate": 1 / 3, "y_true": [0, 1, 0],
+               "models": {"xgboost": [0.2, 0.7, float("nan")]}, "baselines": {}}
+    (data_dir / "processed" / "validation_predictions_h5d.json").write_text(json.dumps(payload))
+    body = local.get("/api/models/validation-predictions", params={"h": 5}).json()
+    assert body["y_true"] == [0, 1, 0] and body["models"]["xgboost"] == [0.2, 0.7, None]
+
+
 def test_events_include_caar_series(local):
     body = local.get("/api/events").json()
     assert [r["day"] for r in body["caar"]] == [-1, 0, 1]

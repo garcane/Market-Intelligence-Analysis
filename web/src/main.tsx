@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import { Layout } from "./components/Layout";
+import { ThemeProvider } from "./lib/theme";
 import "./theme/index.css";
 
 const Overview = lazy(() => import("./pages/Overview"));
@@ -34,29 +35,31 @@ const queryClient = new QueryClient({
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route index element={<Overview />} />
-            <Route path="ai-market" element={<AiMarket />} />
-            <Route path="stocks" element={<Stocks />} />
-            <Route path="stocks/:id" element={<Stocks />} />
-            <Route path="risk" element={<Risk />} />
-            <Route path="companies" element={<Companies />} />
-            <Route path="supply-chain" element={<SupplyChain />} />
-            <Route path="energy" element={<Energy />} />
-            <Route path="events" element={<Events />} />
-            <Route path="sentiment" element={<Sentiment />} />
-            <Route path="news" element={<News />} />
-            <Route path="models" element={<Models />} />
-            <Route path="explainability" element={<Explainability />} />
-            <Route path="predictions" element={<Predictions />} />
-            <Route path="pipeline" element={<Pipeline />} />
-            <Route path="*" element={<NotFound />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<Overview />} />
+              <Route path="ai-market" element={<AiMarket />} />
+              <Route path="stocks" element={<Stocks />} />
+              <Route path="stocks/:id" element={<Stocks />} />
+              <Route path="risk" element={<Risk />} />
+              <Route path="companies" element={<Companies />} />
+              <Route path="supply-chain" element={<SupplyChain />} />
+              <Route path="energy" element={<Energy />} />
+              <Route path="events" element={<Events />} />
+              <Route path="sentiment" element={<Sentiment />} />
+              <Route path="news" element={<News />} />
+              <Route path="models" element={<Models />} />
+              <Route path="explainability" element={<Explainability />} />
+              <Route path="predictions" element={<Predictions />} />
+              <Route path="pipeline" element={<Pipeline />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

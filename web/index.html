@@ -3,9 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="AI Market Intelligence: prices, sentiment, events and model predictions for AI-exposed equities and crypto." />
+    <meta name="description" content="AI Market Intelligence: prices, sentiment, events and model predictions across the AI supply chain, energy, benchmarks and crypto." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>AI Market Intelligence</title>
+    <script>
+      // Apply the saved theme before first paint (src/lib/theme.tsx owns it afterwards).
+      try {
+        var t = new URLSearchParams(location.search).get("theme") || localStorage.getItem("theme");
+        if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

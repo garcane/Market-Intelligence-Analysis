@@ -189,20 +189,20 @@ export default function Events() {
                                 onClick={() => update("event", e.event_id)}
                                 aria-current={active}
                                 className={clsx("flex w-full items-start gap-3 rounded-xl p-3 text-left transition-colors",
-                                  active ? "bg-ink text-white" : "hover:bg-surface")}
+                                  active ? "bg-ink text-canvas" : "hover:bg-surface")}
                               >
-                                <span className={clsx("tabular w-20 shrink-0 text-[12px] font-medium", active ? "text-white/70" : "text-steel")}>
+                                <span className={clsx("tabular w-20 shrink-0 text-[12px] font-medium", active ? "text-canvas/70" : "text-steel")}>
                                   {shortDate(e.event_date)}
                                 </span>
                                 <span className="min-w-0 flex-1">
                                   <span className="block text-[14px] font-medium">{e.title}</span>
-                                  <span className={clsx("text-[12px]", active ? "text-white/70" : "text-steel")}>
+                                  <span className={clsx("text-[12px]", active ? "text-canvas/70" : "text-steel")}>
                                     {[typeLabel(e.event_type), e.primary_market_id, e.source === "news" ? "from news" : null].filter(Boolean).join(" · ")}
                                   </span>
                                 </span>
                                 {typeof car === "number" && (
                                   <span className={clsx("tabular text-[13px] font-semibold",
-                                    active ? "text-white" : car >= 0 ? "text-gain" : "text-loss")}>
+                                    active ? "text-canvas" : car >= 0 ? "text-gain" : "text-loss")}>
                                     {(car * 100).toFixed(1)}%
                                   </span>
                                 )}

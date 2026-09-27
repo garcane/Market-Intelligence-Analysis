@@ -53,6 +53,52 @@
   --shadow-float: 0 16px 48px -8px rgba(5, 0, 56, 0.12);
 }
 
+/* Dark theme: the same tokens, redefined. Every utility reads var(--color-*),
+   so components follow without per-class dark variants. Toggled by
+   data-theme on <html> (src/lib/theme.tsx); light is the default. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-canvas: #16171c;
+  --color-surface: #1d1f26;
+  --color-surface-soft: #111217;
+  --color-hairline: #2f323d;
+  --color-hairline-soft: #23252e;
+  --color-hairline-strong: #3a3e4b;
+
+  --color-ink: #eceef3;
+  --color-ink-deep: #f5f6fa;
+  --color-charcoal: #d6d8e0;
+  --color-slate: #b4b8c4;
+  --color-steel: #9a9eab;
+  --color-stone: #7f8392;
+  --color-muted: #6f7382;
+
+  /* pastel feature fills become deep tints; text on them uses the light tokens */
+  --color-brand-yellow: #4a3d0c;
+  --color-yellow-light: #3b3212;
+  --color-surface-yellow: #2e2810;
+  --color-yellow-dark: #f2d66b;
+  --color-brand-blue: #7d93ff;
+  --color-blue-pressed: #a3b3ff;
+  --color-lavender: #25224a;
+  --color-coral-light: #44201f;
+  --color-coral-dark: #ffb3b3;
+  --color-teal-light: #0f3533;
+  --color-moss: #6fd8cf;
+  --color-rose-light: #3f1f33;
+  --color-orange-light: #40301a;
+
+  /* lighter text shades keep AA contrast on the dark canvas */
+  --color-gain: #3ddc97;
+  --color-gain-soft: #10301f;
+  --color-loss: #ff7b7b;
+  --color-loss-soft: #3a1618;
+
+  --shadow-card: 0 4px 12px 0 rgba(0, 0, 0, 0.4);
+  --shadow-float: 0 16px 48px -8px rgba(0, 0, 0, 0.6);
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;

@@ -1,5 +1,5 @@
 import type { ChartOption } from "../components/Chart";
-import { AXIS, GAIN, LOSS, TOOLTIP } from "./chartTheme";
+import { AXIS, GAIN, LOSS, PALETTE, TOOLTIP } from "./chartTheme";
 
 type Formatter = (value: number) => string;
 
@@ -115,5 +115,71 @@ export function correlationHeatmap(ids: string[], matrix: (number | null)[][]): 
       itemStyle: { borderColor: "#ffffff", borderWidth: 1 },
       emphasis: { itemStyle: { borderColor: "#1c1c1e" } },
     }],
+  };
+}
+
+export interface CurveSeries {
+  name: string;
+  /** [x, y, threshold] */
+  points: [number, number, number][];
+  /** the operating point at the selected threshold */
+  marker?: [number, number, number];
+}
+
+/** Classifier curves on the unit square (ROC, precision-recall): legend
+ * toggling, zoom, a dashed reference line and a marker per model at the
+ * selected threshold. */
+export function xyCurves(series: CurveSeries[], opts: {
+  xName: string;
+  yName: string;
+  reference: { label: string; points: [number, number][] };
+}): ChartOption {
+  const fmt = numFmt(3);
+  return {
+    grid: { left: 8, right: 24, top: 40, bottom: 44, containLabel: true },
+    legend: { top: 0, left: 0, icon: "roundRect", itemWidth: 12, itemHeight: 4, textStyle: { color: "#555a6a" } },
+    tooltip: {
+      ...TOOLTIP,
+      trigger: "item",
+      formatter: (p: { seriesName: string; data: number[]; marker: string }) => {
+        const [x, y, t] = p.data;
+        const threshold = t === undefined ? "" : `<br/>threshold ${fmt(t)}`;
+        return `${p.marker}<b>${p.seriesName}</b><br/>${opts.xName} ${fmt(x)} · ${opts.yName} ${fmt(y)}${threshold}`;
+      },
+    },
+    xAxis: { type: "value", min: 0, max: 1, name: opts.xName, nameLocation: "middle", nameGap: 28, ...AXIS,
+      nameTextStyle: { color: "#6b6f7e" } },
+    yAxis: { type: "value", min: 0, max: 1, name: opts.yName, nameLocation: "middle", nameGap: 40, ...AXIS,
+      nameTextStyle: { color: "#6b6f7e" } },
+    dataZoom: [{ type: "inside", xAxisIndex: 0, filterMode: "none" }, { type: "inside", yAxisIndex: 0, filterMode: "none" }],
+    series: [
+      ...series.map((s, i) => ({
+        name: s.name,
+        type: "line",
+        showSymbol: false,
+        color: PALETTE[i % PALETTE.length],
+        lineStyle: { width: 1.75 },
+        emphasis: { focus: "series" },
+        data: s.points,
+      })),
+      // same name as the line, so toggling a legend item hides both
+      ...series.flatMap((s, i) => s.marker ? [{
+        name: s.name,
+        type: "scatter",
+        symbolSize: 11,
+        z: 5,
+        itemStyle: { color: PALETTE[i % PALETTE.length], borderColor: "#ffffff", borderWidth: 2 },
+        data: [s.marker],
+      }] : []),
+      {
+        name: opts.reference.label,
+        type: "line",
+        showSymbol: false,
+        silent: true,
+        lineStyle: { type: "dashed", width: 1.25, color: "#c7cad5" },
+        itemStyle: { color: "#c7cad5" },
+        data: opts.reference.points,
+      },
+    ],
   };
 }

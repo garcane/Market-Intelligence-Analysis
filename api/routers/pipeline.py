@@ -45,6 +45,8 @@ JOBS: dict[str, dict] = {
               "description": "Rebuild the train / validation / test split."},
     "train": {"module": "src.models.train_baselines", "label": "Train models",
               "description": "Retrain the baselines and write the model report (validation only)."},
+    "validation_predictions": {"module": "src.models.validation_predictions", "label": "Validation predictions",
+                               "description": "Re-export per-row validation predictions for the model charts from the saved models (train does this too)."},
     "explain": {"module": "src.models.run_explain", "label": "Explainability",
                 "description": "Recompute importance, SHAP and permutation importance."},
     "indices": {"module": "src.analytics.run_indices", "label": "AI indices",

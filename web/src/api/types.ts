@@ -255,6 +255,17 @@ export interface ModelReport {
   any_suspiciously_high_auc: boolean;
 }
 
+/** Validation labels and per-model probabilities, for curves and threshold-dependent confusion matrices. */
+export interface ValidationPredictions {
+  horizon: number;
+  n_validation: number;
+  base_rate: Num;
+  y_true: number[];
+  models: Record<string, Num[]>;
+  /** baselines' predictions are fixed, not thresholded */
+  baselines: Record<string, { tn: number; fp: number; fn: number; tp: number }>;
+}
+
 export interface FeatureValue {
   feature: string;
   importance?: Num;

@@ -40,6 +40,16 @@ def _feature_table(name: str, value_cols: list[str]) -> list[dict]:
     return data.records(df[keep], date_cols=())
 
 
+@router.get("/models/validation-predictions")
+def validation_predictions(h: int = Query(5, ge=1)) -> dict:
+    """True labels and each model's validation probabilities: the web app
+    draws ROC/PR curves and threshold-dependent confusion matrices from them."""
+    payload = data.processed_json(f"validation_predictions_h{h}d.json")
+    if payload is None:
+        raise HTTPException(404, f"no validation predictions for horizon {h}d; run src.models.validation_predictions")
+    return data.clean(payload)
+
+
 @router.get("/models/explainability")
 def explainability(h: int = Query(5, ge=1)) -> dict:
     report = _horizon_report(h)

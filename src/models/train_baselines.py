@@ -22,6 +22,7 @@ from src.models.baselines import majority_class_predictions, random_predictions
 from src.models.classifiers import build_models
 from src.models.dataset import build_dataset_for_horizon, split_xy
 from src.models.evaluate import LEADERBOARD_CRITERIA, calibration_curve_summary, compute_metrics
+from src.models import validation_predictions
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ def main(horizon: int = PRIMARY_HORIZON) -> None:
 
     # --- the four real models ---
     models = build_models()
+    val_probas = {}
     for name, pipeline in models.items():
         t0 = time.perf_counter()
         pipeline.fit(X_train, y_train)  # preprocessing (scaler/encoder) is fit ONLY on train, inside the Pipeline
@@ -75,6 +77,7 @@ def main(horizon: int = PRIMARY_HORIZON) -> None:
         train_metrics = compute_metrics(y_train, train_pred, train_proba)
         val_metrics = compute_metrics(y_val, val_pred, val_proba)
         calibration = calibration_curve_summary(y_val, val_proba)
+        val_probas[name] = val_proba
 
         report["models"][name] = {
             "train_metrics": train_metrics,
@@ -111,6 +114,11 @@ def main(horizon: int = PRIMARY_HORIZON) -> None:
 
     with open(PROCESSED_DIR / f"model_report_h{horizon}d.json", "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, default=str)
+
+    # per-row validation predictions for the web app's curves and threshold slider
+    baselines = {n: m["validation_metrics"]["confusion_matrix"]
+                 for n, m in report["models"].items() if n.startswith("baseline")}
+    validation_predictions.write(validation_predictions.build_payload(horizon, y_val, val_probas, baselines))
 
     logger.info("Stage 9 leaderboard (horizon=%dd, ranked by %s): %s", horizon, LEADERBOARD_CRITERIA, leaderboard)
     if report["any_suspiciously_high_auc"]:

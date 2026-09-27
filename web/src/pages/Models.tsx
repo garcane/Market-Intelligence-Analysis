@@ -2,12 +2,13 @@ import { createColumnHelper } from "@tanstack/react-table";
 import { AlertTriangle, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { figureUrl, useModelReport } from "../api/client";
-import type { Metrics, ModelReport } from "../api/types";
+import { useModelReport, useValidationPredictions } from "../api/client";
+import type { Metrics, ModelReport, ValidationPredictions } from "../api/types";
 import { Chart } from "../components/Chart";
 import { DataTable } from "../components/DataTable";
 import { Badge, Card, PageHeader, PillTabs, QueryState, StatCard } from "../components/ui";
-import { horizontalBars, numFmt } from "../lib/charts";
+import { type Confusion, confusionAt, pointAt, prCurve, rates, rocCurve } from "../lib/classification";
+import { horizontalBars, numFmt, xyCurves } from "../lib/charts";
 import { compact, humanize, num, pct } from "../lib/format";
 
 type Row = Metrics & { name: string; rank: number | null; baseline: boolean; gap: number | null | undefined };
@@ -43,34 +44,104 @@ const columns = [
   }),
 ];
 
-function ConfusionMatrix({ name, m }: { name: string; m: Metrics }) {
-  const cm = m.confusion_matrix;
-  if (!cm) return null;
+function ConfusionMatrix({ name, cm, fixed }: { name: string; cm: Confusion; fixed?: boolean }) {
   const total = cm.tn + cm.fp + cm.fn + cm.tp || 1;
+  const r = rates(cm);
   const cells: [string, number, boolean][] = [
     ["True neg", cm.tn, true], ["False pos", cm.fp, false], ["False neg", cm.fn, false], ["True pos", cm.tp, true],
   ];
   return (
     <div className="rounded-card border border-hairline-soft p-4">
-      <div className="mb-3 text-[14px] font-medium">{humanize(name)}</div>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <span className="text-[14px] font-medium">{humanize(name)}</span>
+        {fixed && <Badge>fixed</Badge>}
+      </div>
       <div className="grid grid-cols-2 gap-1.5" role="table" aria-label={`Confusion matrix for ${humanize(name)}`}>
         {cells.map(([label, v, correct]) => (
-          <div key={label} role="cell" className="rounded-lg p-2.5"
+          <div key={label} role="cell" title={`${label}: ${v} of ${total} rows (${pct(v / total, 1)})`}
+            className="rounded-lg p-2.5 transition-colors"
             style={{ background: correct ? `rgba(0,180,115,${0.08 + (v / total) * 0.6})` : `rgba(229,72,77,${0.06 + (v / total) * 0.6})` }}>
             <div className="text-[11px] text-charcoal/70">{label}</div>
             <div className="tabular text-[18px] font-medium">{v}</div>
           </div>
         ))}
       </div>
+      <div className="tabular mt-3 flex justify-between text-[12px] text-steel">
+        <span>Precision {pct(r.precision, 1)}</span>
+        <span>Recall {pct(r.recall, 1)}</span>
+      </div>
     </div>
   );
 }
 
-const FIGURES = { roc: "13_roc_curves.png", pr: "13_pr_curves.png", confusion: "13_confusion_matrices.png" } as const;
+type Figure = "pr" | "roc" | "confusion";
+
+/** PR / ROC curves and threshold-driven confusion matrices, all from per-row validation predictions. */
+function Curves({ preds, report }: { preds: ValidationPredictions; report: ModelReport }) {
+  const [figure, setFigure] = useState<Figure>("pr");
+  const [threshold, setThreshold] = useState(0.5);
+
+  // leaderboard order, then any other exported model
+  const names = useMemo(
+    () => [...report.leaderboard.filter((n) => n in preds.models), ...Object.keys(preds.models).filter((n) => !report.leaderboard.includes(n))],
+    [preds, report],
+  );
+  const curves = useMemo(() => Object.fromEntries(names.map((n) => [n, {
+    roc: rocCurve(preds.y_true, preds.models[n]),
+    pr: prCurve(preds.y_true, preds.models[n]),
+  }])), [names, preds]);
+
+  const option = useMemo(() => {
+    const metric = (n: string, key: "pr_auc" | "roc_auc") => num(report.models[n]?.validation_metrics[key] ?? null, 3);
+    if (figure === "roc") {
+      return xyCurves(names.map((n) => ({ name: `${humanize(n)} · AUC ${metric(n, "roc_auc")}`, points: curves[n].roc, marker: pointAt(curves[n].roc, threshold) })),
+        { xName: "False positive rate", yName: "True positive rate", reference: { label: "Chance", points: [[0, 0], [1, 1]] } });
+    }
+    const base = preds.base_rate ?? 0;
+    return xyCurves(names.map((n) => ({ name: `${humanize(n)} · AP ${metric(n, "pr_auc")}`, points: curves[n].pr, marker: pointAt(curves[n].pr, threshold) })),
+      { xName: "Recall", yName: "Precision", reference: { label: `Base rate ${pct(base, 0)}`, points: [[0, base], [1, base]] } });
+  }, [figure, names, curves, threshold, report, preds.base_rate]);
+
+  return (
+    <Card
+      title="Curves"
+      subtitle={`Validation split, ${preds.n_validation.toLocaleString()} rows · hover for values, scroll to zoom, click the legend to hide a model`}
+      action={
+        <PillTabs<Figure> label="Figure" value={figure} onChange={setFigure}
+          options={[{ value: "pr", label: "Precision–recall" }, { value: "roc", label: "ROC" }, { value: "confusion", label: "Confusion" }]} />
+      }
+    >
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-surface px-4 py-3">
+        <label htmlFor="threshold" className="text-[13px] font-medium text-slate">
+          Decision threshold <span className="tabular ml-1 text-ink">{threshold.toFixed(2)}</span>
+        </label>
+        <input id="threshold" type="range" min={0.05} max={0.95} step={0.01} value={threshold}
+          onChange={(e) => setThreshold(Number(e.target.value))} className="min-w-40 flex-1 accent-brand-blue" />
+        <button onClick={() => setThreshold(0.5)} disabled={threshold === 0.5}
+          className="rounded-full px-3 py-1 text-[13px] font-medium text-brand-blue disabled:text-muted">
+          Reset to 0.5
+        </button>
+        <span className="w-full text-[12px] text-steel">
+          A row is predicted positive when its probability is at or above the threshold. Dots on the curves mark each model at this threshold.
+        </span>
+      </div>
+
+      {figure === "confusion" ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {names.map((n) => <ConfusionMatrix key={n} name={n} cm={confusionAt(preds.y_true, preds.models[n], threshold)} />)}
+          {Object.entries(preds.baselines).map(([n, cm]) => <ConfusionMatrix key={n} name={n} cm={cm} fixed />)}
+        </div>
+      ) : (
+        <Chart option={option} height={460}
+          ariaLabel={figure === "pr" ? "Precision-recall curves for each model on the validation split" : "ROC curves for each model on the validation split"} />
+      )}
+    </Card>
+  );
+}
 
 export default function Models() {
   const report = useModelReport(5);
-  const [figure, setFigure] = useState<keyof typeof FIGURES>("pr");
+  const preds = useValidationPredictions(5);
 
   const view = useMemo(() => {
     const r: ModelReport | undefined = report.data;
@@ -127,23 +198,9 @@ export default function Models() {
               </Card>
             </div>
 
-            <Card title="Confusion matrices" subtitle="Validation split, threshold 0.5" className="mb-6">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {view!.rows.map((row) => <ConfusionMatrix key={row.name} name={row.name} m={row} />)}
-              </div>
-            </Card>
-
-            <Card
-              title="Curves"
-              subtitle="Rendered by the training pipeline"
-              action={
-                <PillTabs label="Figure" value={figure} onChange={setFigure}
-                  options={[{ value: "pr", label: "Precision–recall" }, { value: "roc", label: "ROC" }, { value: "confusion", label: "Confusion" }]} />
-              }
-            >
-              <img src={figureUrl(FIGURES[figure])} alt={`${figure.toUpperCase()} curves for each model on the validation split`}
-                loading="lazy" className="mx-auto w-full max-w-4xl rounded-xl" />
-            </Card>
+            <QueryState query={preds} skeleton="h-[560px]">
+              {(p) => <Curves preds={p} report={data} />}
+            </QueryState>
           </>
         )}
       </QueryState>
